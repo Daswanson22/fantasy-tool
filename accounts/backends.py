@@ -58,3 +58,20 @@ class YahooFantasyOAuth2(YahooOAuth2):
 
     def get_user_id(self, details, response):
         return response.get('sub') or response.get('xoauth_yahoo_guid')
+
+    def get_user_details(self, response):
+        email = response.get('email', '')
+        # Prefer email prefix as username; fall back to nickname then sub (hash)
+        username = (
+            email.split('@')[0] if email
+            else response.get('nickname')
+            or response.get('preferred_username')
+            or response.get('sub', '')
+        )
+        return {
+            'username': username,
+            'email': email,
+            'fullname': response.get('name', ''),
+            'first_name': response.get('given_name', ''),
+            'last_name': response.get('family_name', ''),
+        }

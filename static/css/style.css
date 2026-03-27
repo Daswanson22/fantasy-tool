@@ -1029,10 +1029,53 @@ ul {
     opacity: 0.55;
     cursor: not-allowed;
 }
+.league-card-selected {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.06);
+}
+.league-card-selected:hover {
+    border-color: rgba(34, 197, 94, 0.75);
+    background: rgba(34, 197, 94, 0.1);
+}
+.league-card-available {
+    border-color: rgba(34, 197, 94, 0.2);
+}
 .league-card-arrow {
     color: var(--color-primary);
     font-size: 1.1rem;
     flex-shrink: 0;
+    white-space: nowrap;
+}
+.selected-label {
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.82rem;
+}
+.btn-select-league {
+    background: var(--color-primary);
+    color: #0a0e17;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 18px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background var(--transition), transform var(--transition);
+}
+.btn-select-league:hover {
+    background: var(--color-primary-dark);
+    transform: translateY(-1px);
+}
+.selection-info {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 14px;
+}
+.selection-info-done {
+    color: var(--color-primary);
+    font-weight: 600;
 }
 .league-badge {
     display: inline-block;

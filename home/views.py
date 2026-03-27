@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from accounts.models import SelectedLeague
 from .yahoo_api import get_api_for_user, TokenExpiredError
 
 
@@ -13,7 +15,6 @@ def _is_hash_username(username):
 
 
 def _get_tier_info(user):
-    """Return (tier, league_limit) from the user's profile, defaulting to free."""
     try:
         profile = user.profile
         return profile.tier, profile.get_league_limit()
@@ -29,6 +30,16 @@ def dashboard(request):
     mlb_teams = []
 
     tier, league_limit = _get_tier_info(user)
+
+    # Leagues the user has permanently selected
+    saved_keys = set(
+        SelectedLeague.objects.filter(user=user).values_list('team_key', flat=True)
+    )
+    slots_remaining = (
+        (league_limit - len(saved_keys)) if league_limit is not None
+        else float('inf')
+    )
+    selection_complete = league_limit is not None and len(saved_keys) >= league_limit
 
     try:
         social = user.social_auth.get(provider='yahoo-oauth2')
@@ -49,9 +60,16 @@ def dashboard(request):
     except Exception:
         pass
 
-    # Annotate each team: locked=True if beyond this user's league limit
-    for i, team in enumerate(mlb_teams):
-        team['locked'] = (league_limit is not None) and (i >= league_limit)
+    # Annotate each team with its display state
+    for team in mlb_teams:
+        if team['team_key'] in saved_keys:
+            team['state'] = 'selected'          # permanently chosen
+        elif selection_complete:
+            team['state'] = 'locked_permanent'  # selection full, cannot pick
+        elif slots_remaining > 0:
+            team['state'] = 'available'         # can be selected
+        else:
+            team['state'] = 'locked_permanent'
 
     return render(request, 'home/dashboard.html', {
         'yahoo_connected': yahoo_connected,
@@ -59,15 +77,50 @@ def dashboard(request):
         'mlb_teams': mlb_teams,
         'tier': tier,
         'league_limit': league_limit,
+        'slots_remaining': slots_remaining,
+        'selection_complete': selection_complete,
+        'saved_count': len(saved_keys),
     })
+
+
+@login_required
+@require_POST
+def select_league(request):
+    """Permanently save a league choice for this user."""
+    team_key  = request.POST.get('team_key', '').strip()
+    team_name = request.POST.get('team_name', '').strip()
+    league_key = request.POST.get('league_key', '').strip()
+
+    if not team_key:
+        return redirect('home:dashboard')
+
+    tier, league_limit = _get_tier_info(request.user)
+    current_count = SelectedLeague.objects.filter(user=request.user).count()
+
+    # Already selected
+    if SelectedLeague.objects.filter(user=request.user, team_key=team_key).exists():
+        return redirect('home:dashboard')
+
+    # Tier limit reached
+    if league_limit is not None and current_count >= league_limit:
+        messages.error(request, 'You have already selected the maximum leagues for your plan.')
+        return redirect('home:dashboard')
+
+    SelectedLeague.objects.create(
+        user=request.user,
+        team_key=team_key,
+        team_name=team_name,
+        league_key=league_key,
+    )
+    messages.success(request, f'"{team_name}" has been added to your leagues.')
+    return redirect('home:dashboard')
 
 
 @login_required
 def teams(request):
     """
-    Show the roster for a specific MLB team.
-    Accepts ?key=<team_key> to identify which team.
-    Enforces tier limits — users cannot bypass them by guessing team keys.
+    Show the roster for a specific MLB team identified by ?key=<team_key>.
+    Only accessible if the team_key belongs to one of the user's selected leagues.
     """
     try:
         social = request.user.social_auth.get(provider='yahoo-oauth2')
@@ -76,6 +129,19 @@ def teams(request):
         return redirect('home:dashboard')
 
     tier, league_limit = _get_tier_info(request.user)
+
+    # Enforce: only allow access to selected leagues
+    saved = list(SelectedLeague.objects.filter(user=request.user))
+    saved_keys = {sl.team_key for sl in saved}
+
+    requested_key = request.GET.get('key', '').strip()
+
+    # If the user hasn't selected leagues yet, fall through using position-based limit
+    if saved_keys and requested_key and requested_key not in saved_keys:
+        return render(request, 'home/teams.html', {
+            'team': None, 'starters': [], 'bench': [],
+            'locked': True, 'tier': tier,
+        })
 
     try:
         api = get_api_for_user(social)
@@ -93,23 +159,19 @@ def teams(request):
             'error': 'No MLB fantasy teams found on your Yahoo account.',
         })
 
-    requested_key = request.GET.get('key', '').strip()
-
     if requested_key:
-        team, team_index = None, None
-        for i, t in enumerate(all_mlb_teams):
-            if t['team_key'] == requested_key:
-                team, team_index = t, i
-                break
-        if team is None:
+        team = next((t for t in all_mlb_teams if t['team_key'] == requested_key), None)
+        if not team:
             messages.error(request, 'Team not found.')
             return redirect('home:dashboard')
-        # Tier enforcement: block access to teams beyond the limit
-        if league_limit is not None and team_index >= league_limit:
-            return render(request, 'home/teams.html', {
-                'team': None, 'starters': [], 'bench': [],
-                'locked': True, 'tier': tier,
-            })
+        # Position-based fallback for users who haven't selected yet
+        if not saved_keys:
+            idx = next(i for i, t in enumerate(all_mlb_teams) if t['team_key'] == requested_key)
+            if league_limit is not None and idx >= league_limit:
+                return render(request, 'home/teams.html', {
+                    'team': None, 'starters': [], 'bench': [],
+                    'locked': True, 'tier': tier,
+                })
     else:
         team = all_mlb_teams[0]
 

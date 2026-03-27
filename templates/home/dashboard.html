@@ -48,25 +48,37 @@
             Yahoo Fantasy connected
         </div>
 
-        <!-- MLB Leagues -->
-        {% if mlb_leagues %}
+        <!-- MLB Teams / Leagues -->
+        {% if mlb_teams %}
         <div class="leagues-section">
             <h2 class="leagues-title">&#9965; My MLB Leagues</h2>
             <div class="leagues-list">
-                {% for league in mlb_leagues %}
-                <div class="league-card">
+                {% for team in mlb_teams %}
+                {% if not team.locked %}
+                <a href="{% url 'home:teams' %}?key={{ team.team_key }}" class="league-card league-card-link">
                     <div class="league-card-info">
-                        <span class="league-card-name">{{ league.league_name }}</span>
+                        <span class="league-card-name">{{ team.team_name }}</span>
                         <div class="league-card-meta">
-                            <span>{{ league.num_teams }} teams</span>
-                            {% if league.season %}<span>{{ league.season }}</span>{% endif %}
-                            {% if league.scoring_type %}<span>{{ league.scoring_type|title }}</span>{% endif %}
+                            <span class="league-badge">MLB</span>
+                            <span>{{ team.game_name }}</span>
                         </div>
                     </div>
-                    <a href="{% url 'home:teams' %}?league={{ league.league_key }}" class="btn btn-primary btn-sm">
-                        View Team
-                    </a>
+                    <span class="league-card-arrow">&#8594;</span>
+                </a>
+                {% else %}
+                <div class="league-card league-card-locked">
+                    <div class="league-card-info">
+                        <span class="league-card-name">{{ team.team_name }}</span>
+                        <div class="league-card-meta">
+                            <span class="league-badge">MLB</span>
+                            <span class="locked-label">
+                                &#128274;
+                                {% if tier == 'free' %}Upgrade to Pro (3 leagues){% else %}Upgrade to Elite (unlimited){% endif %}
+                            </span>
+                        </div>
+                    </div>
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
         </div>

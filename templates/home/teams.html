@@ -15,6 +15,20 @@
         {% if error %}
         <div class="alert alert-error" style="margin-top:24px;">{{ error }}</div>
 
+        {% elif locked %}
+        <div class="team-locked-message">
+            <div style="font-size:3rem;margin-bottom:16px;">&#128274;</div>
+            <h2>League Locked</h2>
+            <p>
+                {% if tier == 'free' %}
+                    Your Free plan includes 1 league. Upgrade to <strong>Pro</strong> for up to 3 leagues.
+                {% else %}
+                    Your Pro plan includes 3 leagues. Upgrade to <strong>Elite</strong> for unlimited access.
+                {% endif %}
+            </p>
+            <a href="{% url 'home:dashboard' %}" class="btn btn-primary" style="margin-top:24px;display:inline-block;">Back to Dashboard</a>
+        </div>
+
         {% elif team %}
         <!-- Team Header -->
         <div class="team-header">

@@ -73,7 +73,10 @@ AUTHENTICATION_BACKENDS = [
 # Yahoo OAuth2 credentials (loaded from .env)
 SOCIAL_AUTH_YAHOO_OAUTH2_KEY = os.environ.get('YAHOO_CLIENT_ID', '')
 SOCIAL_AUTH_YAHOO_OAUTH2_SECRET = os.environ.get('YAHOO_CLIENT_SECRET', '')
-SOCIAL_AUTH_YAHOO_OAUTH2_SCOPE = ['fspt-r']
+SOCIAL_AUTH_YAHOO_OAUTH2_SCOPE = ['openid', 'fspt-r']
+
+# Force HTTPS in the redirect URI sent to Yahoo
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
 SOCIAL_AUTH_URL_NAMESPACE = 'social'
 

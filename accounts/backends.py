@@ -15,6 +15,11 @@ class YahooFantasyOAuth2(YahooOAuth2):
     REFRESH_TOKEN_URL = 'https://api.login.yahoo.com/oauth2/get_token'
     ACCESS_TOKEN_METHOD = 'POST'
 
+    # Do NOT append state to the redirect_uri — Yahoo requires the redirect_uri
+    # to match the registered value exactly, with no extra query parameters.
+    # The state is sent as a separate parameter instead.
+    REDIRECT_STATE = False
+
     def auth_params(self, state=None):
         params = super().auth_params(state)
         # Yahoo requires response_type=code for authorization code flow

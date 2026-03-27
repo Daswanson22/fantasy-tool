@@ -66,7 +66,7 @@ DATABASES = {
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
-    'social_core.backends.yahoo.YahooOAuth2',
+    'accounts.backends.YahooFantasyOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 ]
 

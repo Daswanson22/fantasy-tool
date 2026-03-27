@@ -796,6 +796,11 @@ ul {
     color: #f87171;
 }
 
+.form-hint {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+}
+
 .form-group-checkbox {
     flex-direction: row;
     align-items: flex-start;

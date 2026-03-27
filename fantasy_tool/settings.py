@@ -100,8 +100,6 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
-    # Apply password collected during registration
-    'accounts.pipeline.set_yahoo_user_password',
     'social_core.pipeline.user.user_details',
     'accounts.pipeline.fix_username_from_email',
 )

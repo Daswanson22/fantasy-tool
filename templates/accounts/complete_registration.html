@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Complete Your Account - Fantasy Tool{% endblock %}
+{% block title %}Choose a Username - Fantasy Tool{% endblock %}
 
 {% block content %}
 <section class="auth-section">
@@ -13,7 +13,7 @@
                 <span class="logo-icon">&#9917;</span>
                 <span>Fantasy Tool</span>
             </div>
-            <h2 class="auth-headline">One last step — set up your account.</h2>
+            <h2 class="auth-headline">One last step — choose your username.</h2>
             <ul class="auth-benefits">
                 <li>
                     <span class="benefit-icon">&#127942;</span>
@@ -43,7 +43,9 @@
         <div class="auth-panel auth-panel-right">
             <div class="auth-form-wrapper">
                 <h1 class="auth-title">Create your account</h1>
-                <p class="auth-subtitle">Yahoo connected ✓ — just choose a username and password.</p>
+                <p class="auth-subtitle">
+                    Yahoo connected &#10003; — your email is saved. Just pick a username.
+                </p>
 
                 {% if errors %}
                 <div class="alert alert-error">
@@ -53,7 +55,6 @@
                 </div>
                 {% endif %}
 
-                <!-- Form POSTs back to the social auth complete URL to resume the pipeline -->
                 <form method="post" action="/auth/complete/yahoo-oauth2/" class="auth-form" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="partial_token" value="{{ partial_token }}">
@@ -62,26 +63,9 @@
                         <label for="id_username">Username</label>
                         <input type="text" id="id_username" name="username"
                                class="form-input" placeholder="Choose a username"
-                               value="{{ prefill.username }}" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="id_email">Email address</label>
-                        <input type="email" id="id_email" name="email"
-                               class="form-input" placeholder="you@example.com"
-                               value="{{ prefill.email }}" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="id_password1">Password</label>
-                        <input type="password" id="id_password1" name="password1"
-                               class="form-input" placeholder="Create a password (min 8 chars)" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="id_password2">Confirm password</label>
-                        <input type="password" id="id_password2" name="password2"
-                               class="form-input" placeholder="Confirm your password" required>
+                               value="{{ prefill.username }}"
+                               autocomplete="username" required autofocus>
+                        <span class="form-hint">Letters, numbers, hyphens and underscores only.</span>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-block btn-lg">

@@ -5,8 +5,8 @@ from social_core.pipeline.partial import partial
 @partial
 def require_registration(strategy, details, backend, user=None, *args, **kwargs):
     """
-    For new Yahoo OAuth users: redirect to a registration form to collect
-    username, email, and password before creating their Django account.
+    For new Yahoo OAuth users: redirect to a form to collect only a username.
+    Email is taken directly from Yahoo's OAuth details (no password needed).
     Existing users pass through immediately.
     """
     if user:
@@ -23,35 +23,23 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
             )
         )
 
-    # Second pass — form was submitted, validate and inject into details
+    # Second pass — form was submitted, validate username only
     User = get_user_model()
     username = data.get('username', '').strip()
-    email = data.get('email', '').strip()
-    password1 = data.get('password1', '')
-    password2 = data.get('password2', '')
 
     errors = []
     if not username:
         errors.append('Username is required.')
+    elif len(username) < 3:
+        errors.append('Username must be at least 3 characters.')
+    elif not username.replace('_', '').replace('-', '').isalnum():
+        errors.append('Username may only contain letters, numbers, hyphens and underscores.')
     elif User.objects.filter(username=username).exists():
         errors.append('That username is already taken.')
 
-    if not email:
-        errors.append('Email is required.')
-
-    if not password1:
-        errors.append('Password is required.')
-    elif len(password1) < 8:
-        errors.append('Password must be at least 8 characters.')
-    elif password1 != password2:
-        errors.append('Passwords do not match.')
-
     if errors:
         strategy.request.session['registration_errors'] = errors
-        strategy.request.session['registration_prefill'] = {
-            'username': username,
-            'email': email,
-        }
+        strategy.request.session['registration_prefill'] = {'username': username}
         current_partial = kwargs.get('current_partial')
         return strategy.redirect(
             '/accounts/complete-registration/?partial_token={}'.format(
@@ -59,28 +47,8 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
             )
         )
 
-    # Inject validated values so get_username / create_user pick them up
+    # Inject username; email comes from Yahoo details (set by get_user_details)
     details['username'] = username
-    details['email'] = email
-
-    # Stash password in session — applied by set_yahoo_user_password after create_user
-    strategy.request.session['yahoo_reg_password'] = password1
-
-
-def set_yahoo_user_password(strategy, user=None, *args, **kwargs):
-    """
-    Set the password for users created through the Yahoo OAuth registration
-    flow. The password was stashed in the session by require_registration.
-    """
-    if not user:
-        return
-    if user.has_usable_password():
-        return  # Already has a password (email signup users, or re-authentication)
-
-    password = strategy.request.session.pop('yahoo_reg_password', None)
-    if password:
-        user.set_password(password)
-        user.save(update_fields=['password'])
 
 
 def fix_username_from_email(backend, user, response, details, *args, **kwargs):

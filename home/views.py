@@ -18,6 +18,7 @@ def dashboard(request):
     user = request.user
     yahoo_connected = False
     yahoo_guid = None
+    mlb_leagues = []
 
     try:
         social = user.social_auth.get(provider='yahoo-oauth2')
@@ -30,12 +31,20 @@ def dashboard(request):
             if email:
                 user.username = email.split('@')[0]
                 user.save(update_fields=['username'])
+
+        # Fetch MLB leagues to display inline on dashboard
+        api = get_api_for_user(social)
+        mlb_leagues = api.get_mlb_leagues()
+
+    except TokenExpiredError:
+        messages.warning(request, 'Yahoo session expired — please reconnect.')
     except Exception:
-        pass
+        pass  # Leagues simply won't show if the API call fails
 
     return render(request, 'home/dashboard.html', {
         'yahoo_connected': yahoo_connected,
         'yahoo_guid': yahoo_guid,
+        'mlb_leagues': mlb_leagues,
     })
 
 

@@ -36,11 +36,27 @@ class YahooFantasyAPI:
     # Public helpers
     # ------------------------------------------------------------------
 
+    def get_mlb_leagues(self):
+        """
+        Return the user's MLB Fantasy leagues using the Games collection
+        filtered to game_codes=mlb.
+        Each entry: { league_key, league_name, num_teams, season,
+                      draft_status, scoring_type, game_name }
+        """
+        data = self.get('/users;use_login=1/games;game_codes=mlb/leagues')
+        return _parse_user_leagues(data)
+
+    def get_mlb_teams(self):
+        """
+        Return the user's MLB Fantasy teams (used to resolve team_key
+        from a league_key when loading a roster).
+        Each entry: { team_key, team_name, league_key, game_name }
+        """
+        data = self.get('/users;use_login=1/games;game_codes=mlb/teams')
+        return _parse_user_teams(data)
+
     def get_user_teams(self):
-        """
-        Return a list of dicts:
-          { team_key, team_name, league_key, league_name, game_name, num_teams }
-        """
+        """Return all teams across all sports (kept for compatibility)."""
         data = self.get('/users;use_login=1/games/teams')
         return _parse_user_teams(data)
 
@@ -124,6 +140,42 @@ def _get_list_value(obj):
     """Yahoo wraps array values as {'0': val, '1': val, 'count': N}."""
     count = obj.get('count', 0)
     return [obj[str(i)] for i in range(count) if str(i) in obj]
+
+
+def _parse_user_leagues(data):
+    """
+    Parse the response from /users;use_login=1/games;game_codes=mlb/leagues.
+    Returns a list of league dicts.
+    """
+    leagues = []
+    try:
+        users_obj = data['fantasy_content']['users']
+        for user_wrapper in _get_list_value(users_obj):
+            user_arr = user_wrapper['user']
+            games_obj = user_arr[1]['games']
+            for game_wrapper in _get_list_value(games_obj):
+                game_arr = game_wrapper['game']
+                game_info = _flatten_array(game_arr[0])
+                if len(game_arr) < 2:
+                    continue
+                leagues_obj = game_arr[1].get('leagues', {})
+                for league_wrapper in _get_list_value(leagues_obj):
+                    league_data = league_wrapper['league']
+                    # League data is a list of single-key dicts
+                    info = _flatten_array(league_data)
+                    leagues.append({
+                        'league_key': info.get('league_key', ''),
+                        'league_name': info.get('name', 'Unknown League'),
+                        'num_teams': info.get('num_teams', '?'),
+                        'season': info.get('season', ''),
+                        'draft_status': info.get('draft_status', ''),
+                        'scoring_type': info.get('scoring_type', ''),
+                        'game_name': game_info.get('name', 'Baseball'),
+                        'url': info.get('url', ''),
+                    })
+    except (KeyError, IndexError, TypeError):
+        pass
+    return leagues
 
 
 def _parse_user_teams(data):

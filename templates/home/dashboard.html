@@ -46,8 +46,34 @@
         <div class="connected-badge">
             <span class="connected-dot"></span>
             Yahoo Fantasy connected
-            {% if yahoo_guid %}<span class="connected-guid">GUID: {{ yahoo_guid }}</span>{% endif %}
         </div>
+
+        <!-- MLB Leagues -->
+        {% if mlb_leagues %}
+        <div class="leagues-section">
+            <h2 class="leagues-title">&#9965; My MLB Leagues</h2>
+            <div class="leagues-list">
+                {% for league in mlb_leagues %}
+                <div class="league-card">
+                    <div class="league-card-info">
+                        <span class="league-card-name">{{ league.league_name }}</span>
+                        <div class="league-card-meta">
+                            <span>{{ league.num_teams }} teams</span>
+                            {% if league.season %}<span>{{ league.season }}</span>{% endif %}
+                            {% if league.scoring_type %}<span>{{ league.scoring_type|title }}</span>{% endif %}
+                        </div>
+                    </div>
+                    <a href="{% url 'home:teams' %}?league={{ league.league_key }}" class="btn btn-primary btn-sm">
+                        View Team
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% elif yahoo_connected %}
+        <p class="text-muted" style="margin: 16px 0 24px;">No MLB leagues found on your Yahoo account.</p>
+        {% endif %}
+
         {% endif %}
 
         <!-- Dashboard Grid -->

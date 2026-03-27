@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Fantasy Tool{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+    <div class="container">
+
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div>
+                <h1>Welcome back, <span class="text-accent">{{ request.user.username }}</span></h1>
+                <p class="dashboard-subtitle">
+                    {% if yahoo_connected %}
+                        Your Yahoo Fantasy account is connected.
+                    {% else %}
+                        Connect your Yahoo Fantasy account to get started.
+                    {% endif %}
+                </p>
+            </div>
+            <form method="post" action="/accounts/logout/">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline">Log Out</button>
+            </form>
+        </div>
+
+        {% if not yahoo_connected %}
+        <!-- Yahoo Connect Banner -->
+        <div class="connect-banner">
+            <div class="connect-banner-icon">&#127942;</div>
+            <div class="connect-banner-text">
+                <h3>Connect Your Yahoo Fantasy Team</h3>
+                <p>Link your Yahoo account to import your leagues, rosters, and get personalized analysis.</p>
+            </div>
+            <a href="{% url 'social:begin' 'yahoo-oauth2' %}" class="btn-yahoo">
+                <svg class="yahoo-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M0 0h5.765l3.618 5.886L13.001 0H18.75L11.09 11.388V18H8.005v-6.63L0 0zm17.778 9.909h-3.323l6.545 8.091H24l-6.222-8.091zM14.455 18l2.182-2.727H13.09L10.91 18h3.545z"/>
+                </svg>
+                Connect Yahoo Fantasy
+            </a>
+        </div>
+
+        {% else %}
+        <!-- Connected Status -->
+        <div class="connected-badge">
+            <span class="connected-dot"></span>
+            Yahoo Fantasy connected
+            {% if yahoo_guid %}<span class="connected-guid">GUID: {{ yahoo_guid }}</span>{% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
+                <div class="dashboard-card-icon">&#128202;</div>
+                <h3>My Teams</h3>
+                <p>View your fantasy leagues and current rosters.</p>
+                {% if yahoo_connected %}
+                    <a href="#" class="btn btn-primary">View Teams</a>
+                {% else %}
+                    <span class="locked-label">Connect Yahoo to unlock</span>
+                {% endif %}
+            </div>
+
+            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
+                <div class="dashboard-card-icon">&#128203;</div>
+                <h3>Lineup Optimizer</h3>
+                <p>Get the optimal lineup for this week's matchup.</p>
+                {% if yahoo_connected %}
+                    <a href="#" class="btn btn-primary">Optimize</a>
+                {% else %}
+                    <span class="locked-label">Connect Yahoo to unlock</span>
+                {% endif %}
+            </div>
+
+            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
+                <div class="dashboard-card-icon">&#9878;</div>
+                <h3>Trade Analyzer</h3>
+                <p>Evaluate incoming trades based on your roster needs.</p>
+                {% if yahoo_connected %}
+                    <a href="#" class="btn btn-primary">Analyze Trade</a>
+                {% else %}
+                    <span class="locked-label">Connect Yahoo to unlock</span>
+                {% endif %}
+            </div>
+
+            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
+                <div class="dashboard-card-icon">&#128640;</div>
+                <h3>Waiver Wire</h3>
+                <p>Top available players ranked for your specific league.</p>
+                {% if yahoo_connected %}
+                    <a href="#" class="btn btn-primary">View Waivers</a>
+                {% else %}
+                    <span class="locked-label">Connect Yahoo to unlock</span>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}

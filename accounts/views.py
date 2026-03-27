@@ -6,6 +6,29 @@ from django.contrib.admin.views.decorators import staff_member_required
 from .forms import SignUpForm
 
 
+def complete_yahoo_registration(request):
+    """
+    Shown after Yahoo OAuth succeeds for a brand-new user.
+    Collects username, email, and password, then resumes the social auth
+    pipeline by POSTing to /auth/complete/yahoo-oauth2/.
+    """
+    if request.user.is_authenticated:
+        return redirect('home:dashboard')
+
+    partial_token = request.GET.get('partial_token', '')
+    if not partial_token:
+        return redirect('accounts:signup')
+
+    errors = request.session.pop('registration_errors', [])
+    prefill = request.session.pop('registration_prefill', {})
+
+    return render(request, 'accounts/complete_registration.html', {
+        'partial_token': partial_token,
+        'errors': errors,
+        'prefill': prefill,
+    })
+
+
 def signup(request):
     if request.user.is_authenticated:
         return redirect('home:index')

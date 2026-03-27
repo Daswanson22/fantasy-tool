@@ -1282,7 +1282,20 @@ ul {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+.player-name-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.player-full-name {
     font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text-heading);
+}
+.player-number {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
 }
 .player-avatar {
     width: 32px;
@@ -1324,6 +1337,7 @@ ul {
 .position-badge.position-dst { background: rgba(20,184,166,.15); color: #2dd4bf; }
 .position-badge.position-bn { background: var(--color-surface); color: var(--color-text-muted); }
 
+.mlb-team-badge,
 .nfl-team-badge {
     display: inline-block;
     padding: 2px 7px;
@@ -1344,10 +1358,19 @@ ul {
 }
 .status-badge.status-active { background: rgba(34,197,94,.12); color: #4ade80; }
 .status-badge.status-ir,
+.status-badge.status-il,
 .status-badge.status-injured { background: rgba(239,68,68,.12); color: #f87171; }
 .status-badge.status-questionable { background: rgba(234,179,8,.12); color: #facc15; }
 .status-badge.status-doubtful { background: rgba(249,115,22,.12); color: #fb923c; }
 .status-badge.status-out { background: rgba(239,68,68,.15); color: #f87171; }
+.status-badge.status-dl { background: rgba(239,68,68,.12); color: #f87171; }
+
+.il-row { opacity: 0.65; }
+
+.eligible-pos {
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
 
 .text-muted { color: var(--color-text-muted); }
 

@@ -137,8 +137,12 @@ def get_api_for_user(social_auth):
 # ------------------------------------------------------------------
 
 def _get_list_value(obj):
-    """Yahoo wraps array values as {'0': val, '1': val, 'count': N}."""
-    count = obj.get('count', 0)
+    """Yahoo wraps array values as {'0': val, '1': val, 'count': N}.
+    count may be an int or a string depending on the endpoint."""
+    try:
+        count = int(obj.get('count', 0))
+    except (ValueError, TypeError):
+        count = 0
     return [obj[str(i)] for i in range(count) if str(i) in obj]
 
 
@@ -214,30 +218,81 @@ def _parse_user_teams(data):
 
 
 def _parse_roster(data):
+    """
+    Parse /team/{key}/roster/players JSON response.
+    Each player dict:  name, position (display), selected_position,
+    eligible_positions (str), mlb_team (abbr), mlb_team_full,
+    status, on_il, is_starting, image_url, player_key, uniform_number
+    """
     players = []
     try:
         team_arr = data['fantasy_content']['team']
-        roster = team_arr[1]['roster']
-        players_obj = roster['players']
-        for player_wrapper in _get_list_value(players_obj):
+        # team_arr = [ [metadata dicts...], {"roster": {...}} ]
+        roster_obj = team_arr[1]['roster']
+        players_obj = roster_obj['players']
+    except (KeyError, IndexError, TypeError):
+        return players
+
+    for player_wrapper in _get_list_value(players_obj):
+        try:
             player_arr = player_wrapper['player']
+            # player_arr[0] = list of info dicts
+            # player_arr[1] = {"selected_position": [...], "starting_status": [...]}
             player_info = _flatten_array(player_arr[0])
+
+            # Name
+            name_data = player_info.get('name', {})
+            name = name_data.get('full', '') if isinstance(name_data, dict) else str(name_data)
+
+            # Selected position & starting status from player_arr[1]
             selected_pos = ''
-            if len(player_arr) > 1:
-                selected_pos = (player_arr[1]
-                                .get('selected_position', [{}])[-1]
-                                .get('position', ''))
+            is_starting = None
+            if len(player_arr) > 1 and isinstance(player_arr[1], dict):
+                extra = player_arr[1]
+
+                sp_list = extra.get('selected_position', [])
+                if isinstance(sp_list, list):
+                    sp_flat = _flatten_array(sp_list)
+                    selected_pos = sp_flat.get('position', '')
+
+                ss_list = extra.get('starting_status', [])
+                if isinstance(ss_list, list):
+                    ss_flat = _flatten_array(ss_list)
+                    val = ss_flat.get('is_starting')
+                    if val is not None:
+                        is_starting = str(val) == '1'
+
+            # Eligible positions → comma-separated string
+            elig = player_info.get('eligible_positions', {})
+            if isinstance(elig, dict):
+                pos_val = elig.get('position', [])
+                if isinstance(pos_val, list):
+                    eligible = ', '.join(str(p) for p in pos_val)
+                else:
+                    eligible = str(pos_val)
+            else:
+                eligible = ''
+
+            status = player_info.get('status', '')
+            on_il = str(player_info.get('on_disabled_list', '0')) == '1'
+
             players.append({
-                'name': player_info.get('full_name', player_info.get('name', {}).get('full', '')),
+                'name': name,
                 'position': player_info.get('display_position', ''),
                 'selected_position': selected_pos,
-                'nfl_team': player_info.get('editorial_team_abbr', ''),
-                'status': player_info.get('status', 'Active'),
+                'eligible_positions': eligible,
+                'mlb_team': player_info.get('editorial_team_abbr', ''),
+                'mlb_team_full': player_info.get('editorial_team_full_name', ''),
+                'status': status if status else 'Active',
+                'on_il': on_il,
+                'is_starting': is_starting,
                 'image_url': player_info.get('image_url', ''),
                 'player_key': player_info.get('player_key', ''),
+                'uniform_number': player_info.get('uniform_number', ''),
             })
-    except (KeyError, IndexError, TypeError):
-        pass
+        except (KeyError, IndexError, TypeError):
+            continue   # skip malformed players, keep going
+
     return players
 
 

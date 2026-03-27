@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib.admin.views.decorators import staff_member_required
 from .forms import SignUpForm
 
 
@@ -22,6 +23,7 @@ def signup(request):
     return render(request, 'accounts/signup.html', {'form': form})
 
 
+@staff_member_required
 def yahoo_debug(request):
     """Temporary: shows the exact OAuth URL social-auth will send to Yahoo."""
     from urllib.parse import urlparse, parse_qs, urlencode, urlunparse

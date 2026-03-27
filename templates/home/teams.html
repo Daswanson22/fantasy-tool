@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Team - Fantasy Tool{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+    <div class="container">
+
+        <!-- Back nav -->
+        <a href="{% url 'home:dashboard' %}" class="teams-back-link">
+            &#8592; Back to Dashboard
+        </a>
+
+        {% if error %}
+        <div class="alert alert-error" style="margin-top:24px;">{{ error }}</div>
+
+        {% elif team %}
+        <!-- Team Header -->
+        <div class="team-header">
+            <div class="team-header-info">
+                <span class="section-badge">{{ team.game_name }}</span>
+                <h1>{{ team.team_name }}</h1>
+                <div class="team-meta">
+                    <span class="team-meta-item">League: <strong>{{ team.league_key }}</strong></span>
+                    {% if team.number_of_moves %}
+                    <span class="team-meta-item">Moves: <strong>{{ team.number_of_moves }}</strong></span>
+                    {% endif %}
+                    {% if team.number_of_trades %}
+                    <span class="team-meta-item">Trades: <strong>{{ team.number_of_trades }}</strong></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% if is_free_tier and total_teams > 1 %}
+            <div class="free-tier-badge">
+                <span class="locked-label">Free plan: 1 league</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Roster -->
+        {% if starters or bench %}
+        <div class="roster-section">
+
+            <!-- Starters -->
+            {% if starters %}
+            <div class="roster-group">
+                <h2 class="roster-group-title">Starters</h2>
+                <div class="roster-table-wrapper">
+                    <table class="roster-table">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th>Player</th>
+                                <th>Team</th>
+                                <th>Eligible Positions</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in starters %}
+                            <tr>
+                                <td>
+                                    <span class="position-badge position-{{ player.selected_position|lower }}">
+                                        {{ player.selected_position }}
+                                    </span>
+                                </td>
+                                <td class="player-name-cell">
+                                    {% if player.image_url %}
+                                    <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
+                                    {% else %}
+                                    <div class="player-avatar player-avatar-placeholder">{{ player.name|first }}</div>
+                                    {% endif %}
+                                    <span>{{ player.name }}</span>
+                                </td>
+                                <td><span class="nfl-team-badge">{{ player.nfl_team }}</span></td>
+                                <td class="text-muted">{{ player.position }}</td>
+                                <td>
+                                    {% if player.status and player.status != 'Active' %}
+                                    <span class="status-badge status-{{ player.status|lower }}">{{ player.status }}</span>
+                                    {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Bench -->
+            {% if bench %}
+            <div class="roster-group">
+                <h2 class="roster-group-title">Bench</h2>
+                <div class="roster-table-wrapper">
+                    <table class="roster-table">
+                        <thead>
+                            <tr>
+                                <th>Pos</th>
+                                <th>Player</th>
+                                <th>Team</th>
+                                <th>Eligible Positions</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in bench %}
+                            <tr class="bench-row">
+                                <td>
+                                    <span class="position-badge position-bn">BN</span>
+                                </td>
+                                <td class="player-name-cell">
+                                    {% if player.image_url %}
+                                    <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
+                                    {% else %}
+                                    <div class="player-avatar player-avatar-placeholder">{{ player.name|first }}</div>
+                                    {% endif %}
+                                    <span>{{ player.name }}</span>
+                                </td>
+                                <td><span class="nfl-team-badge">{{ player.nfl_team }}</span></td>
+                                <td class="text-muted">{{ player.position }}</td>
+                                <td>
+                                    {% if player.status and player.status != 'Active' %}
+                                    <span class="status-badge status-{{ player.status|lower }}">{{ player.status }}</span>
+                                    {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+        {% else %}
+        <p class="text-muted" style="margin-top:32px;">No roster data available for this team.</p>
+        {% endif %}
+
+        {% endif %}
+
+    </div>
+</section>
+{% endblock %}

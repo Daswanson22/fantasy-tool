@@ -1044,3 +1044,166 @@ ul {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+   Teams / Roster Page
+   ============================================ */
+
+.teams-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
+    text-decoration: none;
+    margin-bottom: 28px;
+    margin-top: 32px;
+    transition: color var(--transition);
+}
+.teams-back-link:hover { color: var(--color-primary); }
+
+.team-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 36px;
+}
+.team-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--color-text-heading);
+    margin: 6px 0 10px;
+}
+.team-meta {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.team-meta-item {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+}
+.team-meta-item strong { color: var(--color-text); }
+
+.roster-section { display: flex; flex-direction: column; gap: 36px; }
+
+.roster-group-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+}
+
+.roster-table-wrapper {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.roster-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+.roster-table thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+.roster-table tbody tr {
+    border-bottom: 1px solid var(--color-border);
+    transition: background var(--transition);
+}
+.roster-table tbody tr:last-child { border-bottom: none; }
+.roster-table tbody tr:hover { background: var(--color-bg-card-hover); }
+.roster-table tbody td { padding: 12px 16px; color: var(--color-text); vertical-align: middle; }
+.bench-row { opacity: 0.8; }
+
+.player-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+}
+.player-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--color-surface);
+    flex-shrink: 0;
+}
+.player-avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--color-primary);
+    background: var(--color-primary-glow);
+    border: 1px solid var(--color-primary);
+}
+
+.position-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    min-width: 36px;
+    text-align: center;
+}
+.position-badge.position-qb { background: rgba(239,68,68,.15); color: #f87171; }
+.position-badge.position-rb { background: rgba(34,197,94,.15); color: #4ade80; }
+.position-badge.position-wr { background: rgba(59,130,246,.15); color: #60a5fa; }
+.position-badge.position-te { background: rgba(249,115,22,.15); color: #fb923c; }
+.position-badge.position-k  { background: rgba(168,85,247,.15); color: #c084fc; }
+.position-badge.position-def,
+.position-badge.position-dst { background: rgba(20,184,166,.15); color: #2dd4bf; }
+.position-badge.position-bn { background: var(--color-surface); color: var(--color-text-muted); }
+
+.nfl-team-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.status-badge.status-active { background: rgba(34,197,94,.12); color: #4ade80; }
+.status-badge.status-ir,
+.status-badge.status-injured { background: rgba(239,68,68,.12); color: #f87171; }
+.status-badge.status-questionable { background: rgba(234,179,8,.12); color: #facc15; }
+.status-badge.status-doubtful { background: rgba(249,115,22,.12); color: #fb923c; }
+.status-badge.status-out { background: rgba(239,68,68,.15); color: #f87171; }
+
+.text-muted { color: var(--color-text-muted); }
+
+@media (max-width: 768px) {
+    .roster-table thead th:nth-child(4),
+    .roster-table tbody td:nth-child(4) { display: none; }
+    .team-header { flex-direction: column; }
+}

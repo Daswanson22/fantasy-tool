@@ -57,7 +57,7 @@
                 <h3>My Teams</h3>
                 <p>View your fantasy leagues and current rosters.</p>
                 {% if yahoo_connected %}
-                    <a href="#" class="btn btn-primary">View Teams</a>
+                    <a href="{% url 'home:teams' %}" class="btn btn-primary">View Teams</a>
                 {% else %}
                     <span class="locked-label">Connect Yahoo to unlock</span>
                 {% endif %}

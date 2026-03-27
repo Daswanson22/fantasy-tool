@@ -35,17 +35,31 @@ def yahoo_debug(request):
     abs_redirect_uri = strategy.build_absolute_uri(redirect_path)
     auth_url = backend.auth_url()
 
+    expected_redirect = 'https://localhost:8000/auth/complete/yahoo-oauth2/'
+    redirect_match = abs_redirect_uri == expected_redirect
+
+    # Check which authorization URL is being used
+    auth_base = auth_url.split('?')[0] if '?' in auth_url else auth_url
+    correct_auth_url = 'https://api.login.yahoo.com/oauth2/request_auth'
+    auth_url_match = auth_base == correct_auth_url
+
     return HttpResponse(
         f'<h2>Yahoo OAuth Debug</h2>'
         f'<p><strong>Scheme detected:</strong> <code>{request.scheme}</code></p>'
         f'<p><strong>Host:</strong> <code>{request.get_host()}</code></p>'
-        f'<p><strong>Redirect path (relative):</strong> <code>{redirect_path}</code></p>'
+        f'<hr>'
+        f'<h3>Authorization URL</h3>'
+        f'<p><strong>Base URL used:</strong> <code>{auth_base}</code></p>'
+        f'<p><strong>Expected:</strong> <code>{correct_auth_url}</code></p>'
+        f'<p><strong>Match:</strong> <b>{"✅ YES" if auth_url_match else "❌ NO — wrong authorization URL!"}</b></p>'
+        f'<hr>'
+        f'<h3>Redirect URI</h3>'
         f'<p><strong>Absolute redirect URI sent to Yahoo:</strong><br>'
         f'<code>{abs_redirect_uri}</code></p>'
         f'<p><strong>Registered in Yahoo Developer portal:</strong><br>'
-        f'<code>https://localhost:8000/auth/complete/yahoo-oauth2/</code></p>'
+        f'<code>{expected_redirect}</code></p>'
         f'<p><strong>Match:</strong> '
-        f'<b>{"✅ YES" if abs_redirect_uri == "https://localhost:8000/auth/complete/yahoo-oauth2/" else "❌ NO — mismatch!"}</b></p>'
+        f'<b>{"✅ YES" if redirect_match else "❌ NO — mismatch!"}</b></p>'
         f'<hr>'
         f'<p><strong>Full auth URL:</strong><br>'
         f'<code style="word-break:break-all">{auth_url}</code></p>'

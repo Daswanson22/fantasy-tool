@@ -46,8 +46,83 @@
         <div class="connected-badge">
             <span class="connected-dot"></span>
             Yahoo Fantasy connected
-            {% if yahoo_guid %}<span class="connected-guid">GUID: {{ yahoo_guid }}</span>{% endif %}
         </div>
+
+        <!-- MLB Teams / Leagues -->
+        {% if mlb_teams %}
+        <div class="leagues-section">
+            <h2 class="leagues-title">&#9965; My MLB Leagues</h2>
+
+            {% if not selection_complete and slots_remaining != 'inf' %}
+            <p class="selection-info">
+                Select your league{% if league_limit != 1 %}s{% endif %} —
+                <strong>{{ saved_count }} of {{ league_limit }}</strong> selected.
+                Selections are permanent and cannot be changed.
+            </p>
+            {% elif selection_complete %}
+            <p class="selection-info selection-info-done">
+                &#10003; Your league selection is complete.
+            </p>
+            {% endif %}
+
+            <div class="leagues-list">
+                {% for team in mlb_teams %}
+
+                {% if team.state == 'selected' %}
+                {# Permanently selected — show as a clickable card with checkmark #}
+                <a href="{% url 'home:teams' %}?key={{ team.team_key }}" class="league-card league-card-link league-card-selected">
+                    <div class="league-card-info">
+                        <span class="league-card-name">{{ team.team_name }}</span>
+                        <div class="league-card-meta">
+                            <span class="league-badge">MLB</span>
+                            <span class="selected-label">&#10003; Selected</span>
+                        </div>
+                    </div>
+                    <span class="league-card-arrow">View Team &#8594;</span>
+                </a>
+
+                {% elif team.state == 'available' %}
+                {# Can be selected #}
+                <div class="league-card league-card-available">
+                    <div class="league-card-info">
+                        <span class="league-card-name">{{ team.team_name }}</span>
+                        <div class="league-card-meta">
+                            <span class="league-badge">MLB</span>
+                            <span>{{ team.game_name }}</span>
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'home:select_league' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="team_key" value="{{ team.team_key }}">
+                        <input type="hidden" name="team_name" value="{{ team.team_name }}">
+                        <input type="hidden" name="league_key" value="{{ team.league_key }}">
+                        <button type="submit" class="btn-select-league">Select</button>
+                    </form>
+                </div>
+
+                {% else %}
+                {# locked_permanent — selection full or tier limit reached #}
+                <div class="league-card league-card-locked">
+                    <div class="league-card-info">
+                        <span class="league-card-name">{{ team.team_name }}</span>
+                        <div class="league-card-meta">
+                            <span class="league-badge">MLB</span>
+                            <span class="locked-label">
+                                &#128274;
+                                {% if tier == 'free' %}Upgrade to Pro for more leagues{% else %}Upgrade to Elite for unlimited{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% endfor %}
+            </div>
+        </div>
+        {% elif yahoo_connected %}
+        <p class="text-muted" style="margin: 16px 0 24px;">No MLB leagues found on your Yahoo account.</p>
+        {% endif %}
+
         {% endif %}
 
         <!-- Dashboard Grid -->
@@ -57,7 +132,7 @@
                 <h3>My Teams</h3>
                 <p>View your fantasy leagues and current rosters.</p>
                 {% if yahoo_connected %}
-                    <a href="#" class="btn btn-primary">View Teams</a>
+                    <a href="{% url 'home:teams' %}" class="btn btn-primary">View Teams</a>
                 {% else %}
                     <span class="locked-label">Connect Yahoo to unlock</span>
                 {% endif %}

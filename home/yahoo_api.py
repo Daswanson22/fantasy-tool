@@ -257,9 +257,18 @@ def _parse_roster(data):
         logger.warning('_parse_roster: roster_obj is %s, expected dict', type(roster_obj))
         return players
 
-    players_obj = roster_obj.get('players', {})
+    # Yahoo nests sub-resources in count-keyed format:
+    #   roster: { "coverage_type":..., "0": {"players": {...}}, "count": 1 }
+    # OR directly:
+    #   roster: { "coverage_type":..., "players": {...} }
+    players_obj = roster_obj.get('players')
     if not players_obj:
-        logger.warning('_parse_roster: no players key in roster_obj. Keys: %s', list(roster_obj.keys()))
+        # Try unwrapping from count-keyed sub-resource at '0'
+        inner = roster_obj.get('0', {})
+        if isinstance(inner, dict):
+            players_obj = inner.get('players', {})
+    if not players_obj:
+        logger.warning('_parse_roster: no players in roster_obj. Keys: %s', list(roster_obj.keys()))
         return players
 
     for player_wrapper in _get_list_value(players_obj):

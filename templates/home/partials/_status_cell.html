@@ -1,0 +1,7 @@
+{% if player.on_il %}
+<span class="status-badge status-il">IL</span>
+{% elif player.status and player.status != 'Active' %}
+<span class="status-badge status-{{ player.status|lower }}">{{ player.status }}</span>
+{% else %}
+<span class="status-badge status-active">Active</span>
+{% endif %}

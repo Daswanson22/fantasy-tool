@@ -1446,8 +1446,20 @@ ul {
     font-size: 0.78rem;
     font-weight: 600;
 }
-.starting-badge.starting-yes { color: #4ade80; }
-.starting-badge.starting-no  { color: var(--color-text-muted); }
+.starting-badge.starting-yes     { color: #4ade80; }
+.starting-badge.starting-no      { color: var(--color-text-muted); }
+.starting-badge.starting-unknown { color: var(--color-text-muted); font-size: 0.85rem; }
+
+/* ---- Trending indicator ---- */
+.trending-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.trending-badge.trending-up   { color: #4ade80; }
+.trending-badge.trending-down { color: #f87171; }
+.trending-badge.trending-none { color: var(--color-text-muted); font-size: 0.85rem; font-weight: 400; }
 
 /* ---- Position type badge (bench) ---- */
 .position-type-badge {

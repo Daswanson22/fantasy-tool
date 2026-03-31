@@ -291,14 +291,14 @@ def _parse_roster(data):
             # Selected position
             selected_pos = _extract_position(extra.get('selected_position', []))
 
-            # Starting status
+            # Starting status — may be in extra dict or flat player_info
             is_starting = None
-            ss = extra.get('starting_status', [])
+            ss = extra.get('starting_status') or player_info.get('starting_status')
             if ss:
                 ss_flat = _flatten_array(ss) if isinstance(ss, list) else ss
                 val = ss_flat.get('is_starting') if isinstance(ss_flat, dict) else None
                 if val is not None:
-                    is_starting = str(val) == '1'
+                    is_starting = bool(int(val))
 
             # Eligible positions → comma-separated string
             eligible = _parse_eligible_positions(player_info.get('eligible_positions', {}))
@@ -321,6 +321,7 @@ def _parse_roster(data):
                 'player_key': player_info.get('player_key', ''),
                 'uniform_number': player_info.get('uniform_number', ''),
                 'position_type': position_type,
+                'trending': None,  # placeholder — populated in a future feature
             })
         except (KeyError, IndexError, TypeError) as e:
             logger.debug('_parse_roster: skipping player due to %s', e)

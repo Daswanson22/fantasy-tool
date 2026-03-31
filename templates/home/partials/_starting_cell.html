@@ -1,0 +1,9 @@
+{% if player.is_starting is not None %}
+    {% if player.is_starting %}
+    <span class="starting-badge starting-yes" title="In starting lineup today">&#9679; Yes</span>
+    {% else %}
+    <span class="starting-badge starting-no" title="Not in starting lineup today">&#9675; No</span>
+    {% endif %}
+{% else %}
+<span class="starting-badge starting-unknown" title="Starting lineup not yet available for this date">—</span>
+{% endif %}

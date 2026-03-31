@@ -1,0 +1,7 @@
+{% if player.trending %}
+<span class="trending-badge trending-{{ player.trending }}">
+    {% if player.trending == 'up' %}&#8593;{% elif player.trending == 'down' %}&#8595;{% else %}{{ player.trending }}{% endif %}
+</span>
+{% else %}
+<span class="trending-badge trending-none" title="Coming soon">—</span>
+{% endif %}

@@ -294,7 +294,12 @@ def _parse_roster(data):
             # Starting status — may be in extra dict or flat player_info
             is_starting = None
             ss = extra.get('starting_status') or player_info.get('starting_status')
-            if ss:
+            if ss is None:
+                logger.warning(
+                    '_parse_roster: no starting_status for %s. extra keys=%s player_info keys=%s',
+                    name, list(extra.keys()), list(player_info.keys()),
+                )
+            elif ss:
                 ss_flat = _flatten_array(ss) if isinstance(ss, list) else ss
                 val = ss_flat.get('is_starting') if isinstance(ss_flat, dict) else None
                 if val is not None:

@@ -1,0 +1,5 @@
+{% if player.total_points is not None %}
+<span class="points-value">{{ player.total_points|floatformat:1 }}</span>
+{% else %}
+<span class="text-muted" style="font-size:0.85rem;">—</span>
+{% endif %}

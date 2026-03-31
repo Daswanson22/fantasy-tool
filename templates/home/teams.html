@@ -80,6 +80,7 @@
                                 <th>Slot</th>
                                 <th>Player</th>
                                 <th>MLB Team</th>
+                                <th>Pts</th>
                                 <th class="hide-mobile">Eligible</th>
                                 <th>Starting</th>
                                 <th>Trending</th>
@@ -110,6 +111,7 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
+                                <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
                                 <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
                                 <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
@@ -135,6 +137,7 @@
                                 <th>Slot</th>
                                 <th>Player</th>
                                 <th>MLB Team</th>
+                                <th>Pts</th>
                                 <th class="hide-mobile">Eligible</th>
                                 <th>Starting</th>
                                 <th>Trending</th>
@@ -165,6 +168,7 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
+                                <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
                                 <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
                                 <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
@@ -191,6 +195,7 @@
                                 <th>Player</th>
                                 <th>Type</th>
                                 <th>MLB Team</th>
+                                <th>Pts</th>
                                 <th class="hide-mobile">Eligible</th>
                                 <th>Trending</th>
                                 <th>Status</th>
@@ -223,6 +228,7 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
+                                <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
                                 <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
@@ -248,6 +254,7 @@
                                 <th>Player</th>
                                 <th>Position</th>
                                 <th>MLB Team</th>
+                                <th>Pts</th>
                                 <th>Trending</th>
                                 <th>Status</th>
                             </tr>
@@ -275,6 +282,7 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
+                                <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
                                 <td>
                                     <span class="status-badge status-il">{{ player.status }}</span>

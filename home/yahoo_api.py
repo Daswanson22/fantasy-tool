@@ -76,6 +76,15 @@ class YahooFantasyAPI:
         data = self.get(path)
         return _parse_roster(data)
 
+    def get_team_player_stats(self, team_key, stat_type='season'):
+        """Return a dict mapping player_key → total fantasy points for the season.
+
+        Yahoo pre-computes fantasy points using the league's scoring settings and
+        returns them in the player_points.total field.
+        """
+        data = self.get(f'/team/{team_key}/players/stats;type={stat_type}')
+        return _parse_player_stats(data)
+
     def get_league(self, league_key):
         """Return basic league metadata."""
         data = self.get(f'/league/{league_key}')
@@ -364,6 +373,65 @@ def _parse_eligible_positions(elig):
             return ', '.join(str(p) for p in pos_val if p)
         return str(pos_val) if pos_val else ''
     return ''
+
+
+def _parse_player_stats(data):
+    """
+    Parse /team/{key}/players/stats response.
+    Returns dict: { player_key: total_points (float) }
+
+    Yahoo returns pre-computed fantasy points in player_points.total.
+    The players array sits at team[1]['players'] (or team[1]['0']['players'])
+    using the same count-keyed pattern as the roster endpoint.
+    """
+    points_map = {}
+    try:
+        team_arr = data['fantasy_content']['team']
+        players_container = _arr_get(team_arr, 1)
+        if not isinstance(players_container, dict):
+            return points_map
+
+        players_obj = players_container.get('players')
+        if not players_obj:
+            inner = players_container.get('0', {})
+            if isinstance(inner, dict):
+                players_obj = inner.get('players', {})
+        if not players_obj:
+            logger.warning('_parse_player_stats: no players in response. keys=%s',
+                           list(players_container.keys()))
+            return points_map
+    except (KeyError, TypeError) as e:
+        logger.warning('_parse_player_stats: failed to reach players – %s', e)
+        return points_map
+
+    for player_wrapper in _get_list_value(players_obj):
+        try:
+            player_arr = player_wrapper['player']
+            info_raw = _arr_get(player_arr, 0)
+            player_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+            player_key = player_info.get('player_key', '')
+            if not player_key:
+                continue
+
+            extra = _arr_get(player_arr, 1)
+            if not isinstance(extra, dict):
+                extra = {}
+
+            # player_points may be a dict or a list of single-key dicts
+            pp = extra.get('player_points', {})
+            if isinstance(pp, list):
+                pp = _flatten_array(pp)
+            total = pp.get('total') if isinstance(pp, dict) else None
+
+            if total is not None:
+                try:
+                    points_map[player_key] = float(total)
+                except (ValueError, TypeError):
+                    pass
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    return points_map
 
 
 def _parse_league(data):

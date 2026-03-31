@@ -1450,6 +1450,13 @@ ul {
 .starting-badge.starting-no      { color: var(--color-text-muted); }
 .starting-badge.starting-unknown { color: var(--color-text-muted); font-size: 0.85rem; }
 
+/* ---- Fantasy points ---- */
+.points-value {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-text-heading);
+}
+
 /* ---- Trending indicator ---- */
 .trending-badge {
     display: inline-flex;

@@ -1,3 +1,4 @@
+import logging
 from datetime import date as date_cls, timedelta
 
 from django.contrib import messages
@@ -7,6 +8,8 @@ from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 from accounts.models import SelectedLeague
 from .yahoo_api import get_api_for_user, TokenExpiredError
+
+logger = logging.getLogger(__name__)
 
 _staff_only = user_passes_test(lambda u: u.is_staff, login_url='/dashboard/')
 
@@ -197,10 +200,19 @@ def teams(request):
     if roster is None:
         try:
             roster = api.get_team_roster(team['team_key'], date=roster_date_str)
-            cache.set(cache_key, roster, timeout=300)  # 5 minutes
         except Exception as e:
             roster = []
             messages.warning(request, f'Could not load roster: {e}')
+
+        # Merge season fantasy points into each player dict
+        try:
+            points_map = api.get_team_player_stats(team['team_key'])
+            for player in roster:
+                player['total_points'] = points_map.get(player['player_key'])
+        except Exception as e:
+            logger.warning('Could not load player stats: %s', e)
+
+        cache.set(cache_key, roster, timeout=300)  # 5 minutes
 
     batting_lineup, pitching_lineup, bench, il_list = [], [], [], []
     for player in roster:

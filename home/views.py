@@ -1,8 +1,10 @@
+import json
 from datetime import date as date_cls, timedelta
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from accounts.models import SelectedLeague
 from .yahoo_api import get_api_for_user, TokenExpiredError
@@ -116,6 +118,27 @@ def select_league(request):
     )
     messages.success(request, f'"{team_name}" has been added to your leagues.')
     return redirect('home:dashboard')
+
+
+@login_required
+def debug_roster(request):
+    """Staff-only: return raw Yahoo roster JSON to help diagnose parsing issues."""
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    team_key = request.GET.get('key', '').strip()
+    date_str = request.GET.get('date', date_cls.today().isoformat())
+    if not team_key:
+        return JsonResponse({'error': 'Pass ?key=<team_key>'}, status=400)
+
+    try:
+        social = request.user.social_auth.get(provider='yahoo-oauth2')
+        api = get_api_for_user(social)
+        path = f'/team/{team_key}/roster;date={date_str}/players'
+        raw = api.get(path)
+        return JsonResponse(raw, safe=False, json_dumps_params={'indent': 2})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required

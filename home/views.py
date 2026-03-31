@@ -1,3 +1,5 @@
+from datetime import date as date_cls, timedelta
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -175,23 +177,43 @@ def teams(request):
     else:
         team = all_mlb_teams[0]
 
+    # Date handling for MLB (default to today)
+    raw_date = request.GET.get('date', '').strip()
     try:
-        roster = api.get_team_roster(team['team_key'])
+        roster_date = date_cls.fromisoformat(raw_date)
+    except ValueError:
+        roster_date = date_cls.today()
+    roster_date_str = roster_date.isoformat()
+    prev_date = (roster_date - timedelta(days=1)).isoformat()
+    next_date = (roster_date + timedelta(days=1)).isoformat()
+
+    try:
+        roster = api.get_team_roster(team['team_key'], date=roster_date_str)
     except Exception as e:
         roster = []
         messages.warning(request, f'Could not load roster: {e}')
 
-    starters, bench = [], []
+    batting_lineup, pitching_lineup, bench, il_list = [], [], [], []
     for player in roster:
-        if player['selected_position'] == 'BN':
+        sel_pos = player.get('selected_position', '')
+        if sel_pos in ('IL', 'DL', 'NA'):
+            il_list.append(player)
+        elif sel_pos == 'BN':
             bench.append(player)
+        elif player.get('position_type') == 'P':
+            pitching_lineup.append(player)
         else:
-            starters.append(player)
+            batting_lineup.append(player)
 
     return render(request, 'home/teams.html', {
         'team': team,
-        'starters': starters,
+        'batting_lineup': batting_lineup,
+        'pitching_lineup': pitching_lineup,
         'bench': bench,
+        'il_list': il_list,
+        'roster_date': roster_date_str,
+        'prev_date': prev_date,
+        'next_date': next_date,
         'tier': tier,
         'locked': False,
     })

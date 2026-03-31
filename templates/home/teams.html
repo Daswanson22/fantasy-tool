@@ -53,14 +53,26 @@
             </div>
         </div>
 
+        <!-- Date Picker -->
+        <div class="roster-date-bar">
+            <a href="?key={{ team.team_key }}&date={{ prev_date }}" class="roster-date-nav" title="Previous day">&#8592;</a>
+            <form method="get" class="roster-date-form">
+                <input type="hidden" name="key" value="{{ team.team_key }}">
+                <input type="date" name="date" value="{{ roster_date }}" class="roster-date-input" onchange="this.form.submit()">
+            </form>
+            <a href="?key={{ team.team_key }}&date={{ next_date }}" class="roster-date-nav" title="Next day">&#8594;</a>
+        </div>
+
         <!-- Roster -->
-        {% if starters or bench %}
+        {% if batting_lineup or pitching_lineup or bench or il_list %}
         <div class="roster-section">
 
-            <!-- Starters -->
-            {% if starters %}
+            <!-- Batting Lineup -->
+            {% if batting_lineup %}
             <div class="roster-group">
-                <h2 class="roster-group-title">Starting Lineup</h2>
+                <h2 class="roster-group-title">
+                    <span class="roster-group-icon">&#9918;</span> Batting Lineup
+                </h2>
                 <div class="roster-table-wrapper">
                     <table class="roster-table">
                         <thead>
@@ -68,12 +80,13 @@
                                 <th>Slot</th>
                                 <th>Player</th>
                                 <th>MLB Team</th>
-                                <th>Eligible</th>
+                                <th class="hide-mobile">Eligible</th>
+                                <th>Starting</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for player in starters %}
+                            {% for player in batting_lineup %}
                             <tr {% if player.on_il %}class="il-row"{% endif %}>
                                 <td>
                                     <span class="position-badge position-{{ player.selected_position|lower }}">
@@ -96,7 +109,18 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
-                                <td class="text-muted eligible-pos">{{ player.eligible_positions }}</td>
+                                <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
+                                <td>
+                                    {% if player.is_starting is not None %}
+                                        {% if player.is_starting %}
+                                        <span class="starting-badge starting-yes" title="Starting today">&#9679; Yes</span>
+                                        {% else %}
+                                        <span class="starting-badge starting-no" title="Not starting today">&#9675; No</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted" style="font-size:0.8rem;">—</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if player.on_il %}
                                     <span class="status-badge status-il">IL</span>
@@ -114,10 +138,12 @@
             </div>
             {% endif %}
 
-            <!-- Bench -->
-            {% if bench %}
+            <!-- Pitching Lineup -->
+            {% if pitching_lineup %}
             <div class="roster-group">
-                <h2 class="roster-group-title">Bench</h2>
+                <h2 class="roster-group-title">
+                    <span class="roster-group-icon">&#9971;</span> Pitching Staff
+                </h2>
                 <div class="roster-table-wrapper">
                     <table class="roster-table">
                         <thead>
@@ -125,13 +151,14 @@
                                 <th>Slot</th>
                                 <th>Player</th>
                                 <th>MLB Team</th>
-                                <th>Eligible</th>
+                                <th class="hide-mobile">Eligible</th>
+                                <th>Starting</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for player in bench %}
-                            <tr class="bench-row{% if player.on_il %} il-row{% endif %}">
+                            {% for player in pitching_lineup %}
+                            <tr {% if player.on_il %}class="il-row"{% endif %}>
                                 <td>
                                     <span class="position-badge position-{{ player.selected_position|lower }}">
                                         {{ player.selected_position }}
@@ -153,7 +180,18 @@
                                 <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
-                                <td class="text-muted eligible-pos">{{ player.eligible_positions }}</td>
+                                <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
+                                <td>
+                                    {% if player.is_starting is not None %}
+                                        {% if player.is_starting %}
+                                        <span class="starting-badge starting-yes" title="Scheduled to start">&#9679; Yes</span>
+                                        {% else %}
+                                        <span class="starting-badge starting-no" title="Not scheduled">&#9675; No</span>
+                                        {% endif %}
+                                    {% else %}
+                                    <span class="text-muted" style="font-size:0.8rem;">—</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if player.on_il %}
                                     <span class="status-badge status-il">IL</span>
@@ -162,6 +200,120 @@
                                     {% else %}
                                     <span class="status-badge status-active">Active</span>
                                     {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Bench -->
+            {% if bench %}
+            <div class="roster-group">
+                <h2 class="roster-group-title">
+                    <span class="roster-group-icon">&#128196;</span> Bench
+                </h2>
+                <div class="roster-table-wrapper">
+                    <table class="roster-table">
+                        <thead>
+                            <tr>
+                                <th>Slot</th>
+                                <th>Player</th>
+                                <th>Type</th>
+                                <th>MLB Team</th>
+                                <th class="hide-mobile">Eligible</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in bench %}
+                            <tr class="bench-row{% if player.on_il %} il-row{% endif %}">
+                                <td>
+                                    <span class="position-badge position-bn">BN</span>
+                                </td>
+                                <td class="player-name-cell">
+                                    {% if player.image_url %}
+                                    <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
+                                    {% else %}
+                                    <div class="player-avatar player-avatar-placeholder">{{ player.name|first }}</div>
+                                    {% endif %}
+                                    <div class="player-name-info">
+                                        <span class="player-full-name">{{ player.name }}</span>
+                                        {% if player.uniform_number %}
+                                        <span class="player-number">#{{ player.uniform_number }}</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="position-type-badge{% if player.position_type == 'P' %} type-pitcher{% else %} type-batter{% endif %}">
+                                        {% if player.position_type == 'P' %}P{% else %}B{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
+                                </td>
+                                <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
+                                <td>
+                                    {% if player.on_il %}
+                                    <span class="status-badge status-il">IL</span>
+                                    {% elif player.status and player.status != 'Active' %}
+                                    <span class="status-badge status-{{ player.status|lower }}">{{ player.status }}</span>
+                                    {% else %}
+                                    <span class="status-badge status-active">Active</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Injured List / Disabled List -->
+            {% if il_list %}
+            <div class="roster-group">
+                <h2 class="roster-group-title roster-group-title-il">
+                    <span class="roster-group-icon">&#128712;</span> Injured List
+                </h2>
+                <div class="roster-table-wrapper roster-table-wrapper-il">
+                    <table class="roster-table">
+                        <thead>
+                            <tr>
+                                <th>Slot</th>
+                                <th>Player</th>
+                                <th>Position</th>
+                                <th>MLB Team</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for player in il_list %}
+                            <tr class="il-row">
+                                <td>
+                                    <span class="position-badge position-il">{{ player.selected_position }}</span>
+                                </td>
+                                <td class="player-name-cell">
+                                    {% if player.image_url %}
+                                    <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
+                                    {% else %}
+                                    <div class="player-avatar player-avatar-placeholder">{{ player.name|first }}</div>
+                                    {% endif %}
+                                    <div class="player-name-info">
+                                        <span class="player-full-name">{{ player.name }}</span>
+                                        {% if player.uniform_number %}
+                                        <span class="player-number">#{{ player.uniform_number }}</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-muted">{{ player.position }}</td>
+                                <td>
+                                    <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-il">{{ player.status }}</span>
                                 </td>
                             </tr>
                             {% endfor %}

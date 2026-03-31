@@ -1374,8 +1374,95 @@ ul {
 
 .text-muted { color: var(--color-text-muted); }
 
+/* ---- Date picker bar ---- */
+.roster-date-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+}
+.roster-date-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    text-decoration: none;
+    transition: border-color var(--transition), color var(--transition);
+}
+.roster-date-nav:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.roster-date-form { display: flex; }
+.roster-date-input {
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-card);
+    color: var(--color-text);
+    font-size: 0.875rem;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: border-color var(--transition);
+}
+.roster-date-input:focus { outline: none; border-color: var(--color-primary); }
+
+/* ---- Roster group icons/titles ---- */
+.roster-group-icon { font-size: 0.95rem; margin-right: 4px; }
+.roster-group-title-il { color: rgba(239, 68, 68, 0.8); }
+.roster-table-wrapper-il { border-color: rgba(239, 68, 68, 0.2); }
+
+/* ---- MLB position badge colors ---- */
+/* Catcher */
+.position-badge.position-c   { background: rgba(20,184,166,.18); color: #2dd4bf; }
+/* 1B, 2B, 3B */
+.position-badge.position-1b  { background: rgba(59,130,246,.18); color: #60a5fa; }
+.position-badge.position-2b  { background: rgba(99,102,241,.18); color: #818cf8; }
+.position-badge.position-3b  { background: rgba(139,92,246,.18); color: #a78bfa; }
+/* SS */
+.position-badge.position-ss  { background: rgba(236,72,153,.18); color: #f472b6; }
+/* Outfield */
+.position-badge.position-of  { background: rgba(34,197,94,.18); color: #4ade80; }
+/* Util */
+.position-badge.position-util { background: rgba(148,163,184,.12); color: #94a3b8; }
+/* Starting Pitcher */
+.position-badge.position-sp  { background: rgba(249,115,22,.18); color: #fb923c; }
+/* Relief Pitcher */
+.position-badge.position-rp  { background: rgba(234,179,8,.18); color: #facc15; }
+/* Generic Pitcher slot */
+.position-badge.position-p   { background: rgba(168,85,247,.18); color: #c084fc; }
+/* IL / DL */
+.position-badge.position-il,
+.position-badge.position-dl  { background: rgba(239,68,68,.15); color: #f87171; }
+
+/* ---- Starting today indicator ---- */
+.starting-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.starting-badge.starting-yes { color: #4ade80; }
+.starting-badge.starting-no  { color: var(--color-text-muted); }
+
+/* ---- Position type badge (bench) ---- */
+.position-type-badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.position-type-badge.type-pitcher { background: rgba(249,115,22,.15); color: #fb923c; }
+.position-type-badge.type-batter  { background: rgba(34,197,94,.15); color: #4ade80; }
+
 @media (max-width: 768px) {
-    .roster-table thead th:nth-child(4),
-    .roster-table tbody td:nth-child(4) { display: none; }
+    .hide-mobile { display: none; }
     .team-header { flex-direction: column; }
+    .roster-date-bar { justify-content: center; }
 }

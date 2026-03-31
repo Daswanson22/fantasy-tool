@@ -60,9 +60,17 @@ class YahooFantasyAPI:
         data = self.get('/users;use_login=1/games/teams')
         return _parse_user_teams(data)
 
-    def get_team_roster(self, team_key):
-        """Return a list of player dicts for the given team_key."""
-        data = self.get(f'/team/{team_key}/roster/players')
+    def get_team_roster(self, team_key, date=None):
+        """Return a list of player dicts for the given team_key.
+
+        For MLB, pass date='YYYY-MM-DD' to retrieve a specific date's roster.
+        Defaults to today's roster when date is None.
+        """
+        if date:
+            path = f'/team/{team_key}/roster;date={date}/players'
+        else:
+            path = f'/team/{team_key}/roster/players'
+        data = self.get(path)
         return _parse_roster(data)
 
     def get_league(self, league_key):
@@ -263,18 +271,28 @@ def _parse_roster(data):
                         is_starting = str(val) == '1'
 
             # Eligible positions → comma-separated string
+            # Yahoo JSON may give this as a dict {"position": [...]} or a list
+            # of {"position": "X"} dicts.
             elig = player_info.get('eligible_positions', {})
-            if isinstance(elig, dict):
+            if isinstance(elig, list):
+                eligible = ', '.join(
+                    str(item.get('position', ''))
+                    for item in elig if isinstance(item, dict) and item.get('position')
+                )
+            elif isinstance(elig, dict):
                 pos_val = elig.get('position', [])
                 if isinstance(pos_val, list):
                     eligible = ', '.join(str(p) for p in pos_val)
-                else:
+                elif pos_val:
                     eligible = str(pos_val)
+                else:
+                    eligible = ''
             else:
                 eligible = ''
 
             status = player_info.get('status', '')
             on_il = str(player_info.get('on_disabled_list', '0')) == '1'
+            position_type = player_info.get('position_type', 'B')  # 'B'=batter, 'P'=pitcher
 
             players.append({
                 'name': name,
@@ -289,6 +307,7 @@ def _parse_roster(data):
                 'image_url': player_info.get('image_url', ''),
                 'player_key': player_info.get('player_key', ''),
                 'uniform_number': player_info.get('uniform_number', ''),
+                'position_type': position_type,
             })
         except (KeyError, IndexError, TypeError):
             continue   # skip malformed players, keep going

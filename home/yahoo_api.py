@@ -1,10 +1,13 @@
 import time
 import base64
+import logging
 import requests
 from django.conf import settings
 
 YAHOO_FANTASY_BASE = 'https://fantasysports.yahooapis.com/fantasy/v2'
 YAHOO_TOKEN_URL = 'https://api.login.yahoo.com/oauth2/get_token'
+
+logger = logging.getLogger(__name__)
 
 
 class TokenExpiredError(Exception):
@@ -228,71 +231,72 @@ def _parse_user_teams(data):
 def _parse_roster(data):
     """
     Parse /team/{key}/roster/players JSON response.
-    Each player dict:  name, position (display), selected_position,
-    eligible_positions (str), mlb_team (abbr), mlb_team_full,
-    status, on_il, is_starting, image_url, player_key, uniform_number
+
+    Yahoo's JSON format uses two possible encodings for arrays:
+      • A plain Python list  → access by integer index
+      • A count-keyed dict   → {'0': ..., '1': ..., 'count': N}  → access by string key
+
+    We handle both at every level so parsing is resilient to either format.
     """
     players = []
+
     try:
         team_arr = data['fantasy_content']['team']
-        # team_arr = [ [metadata dicts...], {"roster": {...}} ]
-        roster_obj = team_arr[1]['roster']
-        players_obj = roster_obj['players']
-    except (KeyError, IndexError, TypeError):
+    except (KeyError, TypeError) as e:
+        logger.warning('_parse_roster: missing fantasy_content.team – %s', e)
+        return players
+
+    # Unwrap the second element, which holds {"roster": {...}}
+    roster_container = _arr_get(team_arr, 1)
+    if not isinstance(roster_container, dict):
+        logger.warning('_parse_roster: roster_container is %s, expected dict', type(roster_container))
+        return players
+
+    roster_obj = roster_container.get('roster', {})
+    if not isinstance(roster_obj, dict):
+        logger.warning('_parse_roster: roster_obj is %s, expected dict', type(roster_obj))
+        return players
+
+    players_obj = roster_obj.get('players', {})
+    if not players_obj:
+        logger.warning('_parse_roster: no players key in roster_obj. Keys: %s', list(roster_obj.keys()))
         return players
 
     for player_wrapper in _get_list_value(players_obj):
         try:
             player_arr = player_wrapper['player']
-            # player_arr[0] = list of info dicts
-            # player_arr[1] = {"selected_position": [...], "starting_status": [...]}
-            player_info = _flatten_array(player_arr[0])
+
+            # First element: list of flat info dicts
+            info_raw = _arr_get(player_arr, 0)
+            player_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+
+            # Second element: dict with selected_position / starting_status
+            extra = _arr_get(player_arr, 1)
+            if not isinstance(extra, dict):
+                extra = {}
 
             # Name
             name_data = player_info.get('name', {})
             name = name_data.get('full', '') if isinstance(name_data, dict) else str(name_data)
 
-            # Selected position & starting status from player_arr[1]
-            selected_pos = ''
+            # Selected position
+            selected_pos = _extract_position(extra.get('selected_position', []))
+
+            # Starting status
             is_starting = None
-            if len(player_arr) > 1 and isinstance(player_arr[1], dict):
-                extra = player_arr[1]
-
-                sp_list = extra.get('selected_position', [])
-                if isinstance(sp_list, list):
-                    sp_flat = _flatten_array(sp_list)
-                    selected_pos = sp_flat.get('position', '')
-
-                ss_list = extra.get('starting_status', [])
-                if isinstance(ss_list, list):
-                    ss_flat = _flatten_array(ss_list)
-                    val = ss_flat.get('is_starting')
-                    if val is not None:
-                        is_starting = str(val) == '1'
+            ss = extra.get('starting_status', [])
+            if ss:
+                ss_flat = _flatten_array(ss) if isinstance(ss, list) else ss
+                val = ss_flat.get('is_starting') if isinstance(ss_flat, dict) else None
+                if val is not None:
+                    is_starting = str(val) == '1'
 
             # Eligible positions → comma-separated string
-            # Yahoo JSON may give this as a dict {"position": [...]} or a list
-            # of {"position": "X"} dicts.
-            elig = player_info.get('eligible_positions', {})
-            if isinstance(elig, list):
-                eligible = ', '.join(
-                    str(item.get('position', ''))
-                    for item in elig if isinstance(item, dict) and item.get('position')
-                )
-            elif isinstance(elig, dict):
-                pos_val = elig.get('position', [])
-                if isinstance(pos_val, list):
-                    eligible = ', '.join(str(p) for p in pos_val)
-                elif pos_val:
-                    eligible = str(pos_val)
-                else:
-                    eligible = ''
-            else:
-                eligible = ''
+            eligible = _parse_eligible_positions(player_info.get('eligible_positions', {}))
 
             status = player_info.get('status', '')
             on_il = str(player_info.get('on_disabled_list', '0')) == '1'
-            position_type = player_info.get('position_type', 'B')  # 'B'=batter, 'P'=pitcher
+            position_type = player_info.get('position_type', 'B')
 
             players.append({
                 'name': name,
@@ -309,10 +313,46 @@ def _parse_roster(data):
                 'uniform_number': player_info.get('uniform_number', ''),
                 'position_type': position_type,
             })
-        except (KeyError, IndexError, TypeError):
-            continue   # skip malformed players, keep going
+        except (KeyError, IndexError, TypeError) as e:
+            logger.debug('_parse_roster: skipping player due to %s', e)
+            continue
 
     return players
+
+
+def _arr_get(arr, idx):
+    """Get element at idx from either a Python list or a Yahoo count-keyed dict."""
+    if isinstance(arr, list):
+        return arr[idx] if idx < len(arr) else {}
+    if isinstance(arr, dict):
+        return arr.get(str(idx), {})
+    return {}
+
+
+def _extract_position(pos_data):
+    """Extract position string from Yahoo's selected_position sub-array."""
+    if isinstance(pos_data, list):
+        flat = _flatten_array(pos_data)
+        return flat.get('position', '') if isinstance(flat, dict) else ''
+    if isinstance(pos_data, dict):
+        return pos_data.get('position', '')
+    return ''
+
+
+def _parse_eligible_positions(elig):
+    """Return comma-separated eligible positions from Yahoo's eligible_positions value."""
+    if isinstance(elig, list):
+        # Format: [{"position": "C"}, {"position": "Util"}]
+        return ', '.join(
+            str(item.get('position', ''))
+            for item in elig if isinstance(item, dict) and item.get('position')
+        )
+    if isinstance(elig, dict):
+        pos_val = elig.get('position', [])
+        if isinstance(pos_val, list):
+            return ', '.join(str(p) for p in pos_val if p)
+        return str(pos_val) if pos_val else ''
+    return ''
 
 
 def _parse_league(data):

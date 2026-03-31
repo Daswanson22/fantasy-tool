@@ -1,13 +1,14 @@
-import json
 from datetime import date as date_cls, timedelta
 
-from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.cache import cache
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
 from accounts.models import SelectedLeague
 from .yahoo_api import get_api_for_user, TokenExpiredError
+
+_staff_only = user_passes_test(lambda u: u.is_staff, login_url='/dashboard/')
 
 
 def index(request):
@@ -120,25 +121,6 @@ def select_league(request):
     return redirect('home:dashboard')
 
 
-@login_required
-def debug_roster(request):
-    """Staff-only: return raw Yahoo roster JSON to help diagnose parsing issues."""
-    if not request.user.is_staff:
-        return JsonResponse({'error': 'Forbidden'}, status=403)
-
-    team_key = request.GET.get('key', '').strip()
-    date_str = request.GET.get('date', date_cls.today().isoformat())
-    if not team_key:
-        return JsonResponse({'error': 'Pass ?key=<team_key>'}, status=400)
-
-    try:
-        social = request.user.social_auth.get(provider='yahoo-oauth2')
-        api = get_api_for_user(social)
-        path = f'/team/{team_key}/roster;date={date_str}/players'
-        raw = api.get(path)
-        return JsonResponse(raw, safe=False, json_dumps_params={'indent': 2})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required
@@ -210,11 +192,15 @@ def teams(request):
     prev_date = (roster_date - timedelta(days=1)).isoformat()
     next_date = (roster_date + timedelta(days=1)).isoformat()
 
-    try:
-        roster = api.get_team_roster(team['team_key'], date=roster_date_str)
-    except Exception as e:
-        roster = []
-        messages.warning(request, f'Could not load roster: {e}')
+    cache_key = f'roster:{team["team_key"]}:{roster_date_str}'
+    roster = cache.get(cache_key)
+    if roster is None:
+        try:
+            roster = api.get_team_roster(team['team_key'], date=roster_date_str)
+            cache.set(cache_key, roster, timeout=300)  # 5 minutes
+        except Exception as e:
+            roster = []
+            messages.warning(request, f'Could not load roster: {e}')
 
     batting_lineup, pitching_lineup, bench, il_list = [], [], [], []
     for player in roster:

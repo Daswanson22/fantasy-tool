@@ -291,15 +291,11 @@ def _parse_roster(data):
             # Selected position
             selected_pos = _extract_position(extra.get('selected_position', []))
 
-            # Starting status — may be in extra dict or flat player_info
+            # Starting status — Yahoo only includes this once MLB lineups are
+            # officially submitted (~1-3 hrs before first pitch). Absent = None.
             is_starting = None
             ss = extra.get('starting_status') or player_info.get('starting_status')
-            if ss is None:
-                logger.warning(
-                    '_parse_roster: no starting_status for %s. extra keys=%s player_info keys=%s',
-                    name, list(extra.keys()), list(player_info.keys()),
-                )
-            elif ss:
+            if ss:
                 ss_flat = _flatten_array(ss) if isinstance(ss, list) else ss
                 val = ss_flat.get('is_starting') if isinstance(ss_flat, dict) else None
                 if val is not None:

@@ -1,0 +1,26 @@
+{% load static %}
+{% for player in players %}
+<tr>
+    <td class="player-name-cell">
+        {% if player.image_url %}
+        <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
+        {% else %}
+        <div class="player-avatar player-avatar-placeholder">{{ player.name|first }}</div>
+        {% endif %}
+        <div class="player-name-info">
+            <span class="player-full-name">{{ player.name }}</span>
+            {% if player.uniform_number %}
+            <span class="player-number">#{{ player.uniform_number }}</span>
+            {% endif %}
+        </div>
+    </td>
+    <td><span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span></td>
+    <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
+    <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
+    <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
+    <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
+    <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
+</tr>
+{% empty %}
+<tr><td colspan="7" class="text-muted" style="padding:24px;text-align:center;">No players found.</td></tr>
+{% endfor %}

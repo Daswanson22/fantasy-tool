@@ -39,10 +39,10 @@
         <!-- Team Header -->
         <div class="team-header">
             <div class="team-header-info">
-                <span class="section-badge">{{ team.game_name }}</span>
+                {% if team.game_name %}<span class="section-badge">{{ team.game_name }}</span>{% endif %}
                 <h1>{{ team.team_name }}</h1>
                 <div class="team-meta">
-                    <span class="team-meta-item">League: <strong>{{ team.league_key }}</strong></span>
+                    <span class="team-meta-item">League: <strong>{{ league_name }}</strong></span>
                     {% if team.number_of_moves %}
                     <span class="team-meta-item">Moves: <strong>{{ team.number_of_moves }}</strong></span>
                     {% endif %}
@@ -53,7 +53,129 @@
             </div>
         </div>
 
-        <!-- Date Picker -->
+        <!-- AI Manager Toggle -->
+        <div class="ai-manager-bar">
+            <label class="ai-manager-toggle" for="ai-manager-switch">
+                <input type="checkbox" id="ai-manager-switch" onchange="toggleAIManager(this.checked)">
+                <span class="ai-manager-track">
+                    <span class="ai-manager-thumb"></span>
+                </span>
+                <span class="ai-manager-label">Enable AI Manager</span>
+            </label>
+            <button class="btn-ai-configure" onclick="openAIConfig()">Configure AI Manager</button>
+        </div>
+
+        <!-- AI Manager Config Modal -->
+        <div id="ai-config-modal" class="ai-modal-overlay" style="display:none;" onclick="closeAIConfigOutside(event)"
+             data-move-limit="{{ league_settings.max_weekly_adds }}"
+             data-season-limit="{{ league_settings.max_season_adds }}"
+             data-remaining-weeks="{{ remaining_weeks }}"
+             data-league-format="{% if league_settings.is_h2h %}h2h{% else %}roto{% endif %}">
+            <div class="ai-modal">
+                <div class="ai-modal-header">
+                    <h3>Configure AI Manager</h3>
+                    <button class="ai-modal-close" onclick="closeAIConfig()">&times;</button>
+                </div>
+                <p class="ai-modal-description">
+                    AI Manager automatically optimizes your lineup each day — adding hot players and dropping underperformers — while staying within your configured move budget.
+                </p>
+
+                <!-- H2H section -->
+                <div id="ai-body-h2h" class="ai-modal-body" style="display:none;">
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label">League Type</label>
+                        <span class="ai-modal-readonly">{{ league_settings.scoring_type_display }}</span>
+                    </div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label">Max Weekly Moves (League)</label>
+                        <span class="ai-modal-readonly">{% if league_settings.max_weekly_adds %}{{ league_settings.max_weekly_adds }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="ai-modal-divider"></div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label" for="ai-max-total">Max Moves This Week</label>
+                        <input type="number" id="ai-max-total" class="ai-modal-input" min="0" max="999"
+                               value="{{ ai_config.max_total_moves }}" oninput="validateAIMoves()">
+                    </div>
+                    <p id="ai-error-h2h" class="ai-moves-error" style="display:none;"></p>
+                </div>
+
+                <!-- Roto section -->
+                <div id="ai-body-roto" class="ai-modal-body" style="display:none;">
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label">League Type</label>
+                        <span class="ai-modal-readonly">{{ league_settings.scoring_type_display }}</span>
+                    </div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label">Season Add Limit</label>
+                        <span class="ai-modal-readonly">{% if league_settings.max_season_adds %}{{ league_settings.max_season_adds }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label">Weeks Remaining</label>
+                        <span class="ai-modal-readonly">{{ remaining_weeks }}</span>
+                    </div>
+                    <div class="ai-modal-divider"></div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label" for="ai-max-hitter">Hitter Moves / Week</label>
+                        <input type="number" id="ai-max-hitter" class="ai-modal-input" min="0" max="999"
+                               value="{{ ai_config.max_hitter_moves }}" oninput="validateAIMoves()">
+                    </div>
+                    <div class="ai-modal-row">
+                        <label class="ai-modal-label" for="ai-max-pitcher">Pitcher Moves / Week</label>
+                        <input type="number" id="ai-max-pitcher" class="ai-modal-input" min="0" max="999"
+                               value="{{ ai_config.max_pitcher_moves }}" oninput="validateAIMoves()">
+                    </div>
+                    <div class="ai-modal-row ai-projected-row" id="ai-projected-row">
+                        <label class="ai-modal-label">Projected Season Total</label>
+                        <span class="ai-modal-readonly" id="ai-projected-total">—</span>
+                    </div>
+                    <p id="ai-error-roto" class="ai-moves-error" style="display:none;"></p>
+                </div>
+
+                <div class="ai-modal-footer">
+                    <button class="btn-ai-cancel" onclick="closeAIConfig()">Cancel</button>
+                    <button class="btn-ai-save" onclick="saveAIConfig()">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teams Layout -->
+        <div class="teams-layout">
+
+            <!-- Side Nav -->
+            <nav class="teams-sidenav">
+                <button class="sidenav-item active" id="nav-roster" onclick="showTeamView('roster')">
+                    View Roster
+                </button>
+                <button class="sidenav-item" id="nav-waiver" onclick="showTeamView('waiver')">
+                    Waiver Wire
+                </button>
+                {% if can_access_available_sp %}
+                <button class="sidenav-item" id="nav-available-sp" onclick="showTeamView('available-sp')">
+                    Available SP
+                </button>
+                {% else %}
+                <button class="sidenav-item sidenav-item-locked" onclick="showTeamView('available-sp-locked')">
+                    Available SP &#128274;
+                </button>
+                {% endif %}
+                {% if can_access_matchups %}
+                <button class="sidenav-item" id="nav-matchups" onclick="showTeamView('matchups')">
+                    Matchups
+                </button>
+                {% else %}
+                <button class="sidenav-item sidenav-item-locked" onclick="showTeamView('matchups-locked')">
+                    Matchups &#128274;
+                </button>
+                {% endif %}
+            </nav>
+
+            <!-- Content -->
+            <div class="teams-content">
+
+                <!-- Roster View -->
+                <div id="view-roster">
+
+                <!-- Date Picker -->
         <div class="roster-date-bar">
             <a href="?key={{ team.team_key }}&date={{ prev_date }}" class="roster-date-nav" title="Previous day">&#8592;</a>
             <form method="get" class="roster-date-form">
@@ -85,6 +207,7 @@
                                 <th>Starting</th>
                                 <th>Trending</th>
                                 <th>Status</th>
+                                <th>Keeper</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -116,6 +239,7 @@
                                 <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
+                                <td>{% include "home/partials/_keeper_cell.html" with player=player %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -142,6 +266,7 @@
                                 <th>Starting</th>
                                 <th>Trending</th>
                                 <th>Status</th>
+                                <th>Keeper</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -173,6 +298,7 @@
                                 <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
+                                <td>{% include "home/partials/_keeper_cell.html" with player=player %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -193,12 +319,13 @@
                             <tr>
                                 <th>Slot</th>
                                 <th>Player</th>
-                                <th>Type</th>
                                 <th>MLB Team</th>
                                 <th>Pts</th>
                                 <th class="hide-mobile">Eligible</th>
+                                <th>Starting</th>
                                 <th>Trending</th>
                                 <th>Status</th>
+                                <th>Keeper</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -221,17 +348,14 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="position-type-badge{% if player.position_type == 'P' %} type-pitcher{% else %} type-batter{% endif %}">
-                                        {% if player.position_type == 'P' %}P{% else %}B{% endif %}
-                                    </span>
-                                </td>
-                                <td>
                                     <span class="mlb-team-badge" title="{{ player.mlb_team_full }}">{{ player.mlb_team }}</span>
                                 </td>
                                 <td>{% include "home/partials/_points_cell.html" with player=player %}</td>
                                 <td class="text-muted eligible-pos hide-mobile">{{ player.eligible_positions }}</td>
+                                <td>{% include "home/partials/_starting_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
                                 <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
+                                <td>{% include "home/partials/_keeper_cell.html" with player=player %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -257,6 +381,7 @@
                                 <th>Pts</th>
                                 <th>Trending</th>
                                 <th>Status</th>
+                                <th>Keeper</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,6 +412,7 @@
                                 <td>
                                     <span class="status-badge status-il">{{ player.status }}</span>
                                 </td>
+                                <td>{% include "home/partials/_keeper_cell.html" with player=player %}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -300,8 +426,439 @@
         <p class="text-muted" style="margin-top:32px;">No roster data available for this team.</p>
         {% endif %}
 
+                </div><!-- /view-roster -->
+
+                <!-- Waiver Wire View -->
+                <div id="view-waiver" style="display:none;">
+
+                    <!-- Sort + Filter Bar -->
+                    <div class="roster-date-bar waiver-controls">
+                        <button class="roster-date-nav waiver-sort-btn active-sort" data-sort="pts" onclick="sortWaiver('pts', this)">Pts</button>
+                        <button class="roster-date-nav waiver-sort-btn" data-sort="name" onclick="sortWaiver('name', this)">Name</button>
+                        <button class="roster-date-nav waiver-sort-btn" data-sort="trending" onclick="sortWaiver('trending', this)">Trend</button>
+
+                        <div class="waiver-filter-sep"></div>
+
+                        <select class="waiver-filter" id="filter-team" onchange="filterWaiver()">
+                            <option value="">All Teams</option>
+                        </select>
+                        <select class="waiver-filter" id="filter-position" onchange="filterWaiver()">
+                            <option value="">All Positions</option>
+                        </select>
+                        <select class="waiver-filter" id="filter-status" onchange="filterWaiver()">
+                            <option value="">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="DTD">DTD</option>
+                            <option value="DL">DL</option>
+                        </select>
+                        <select class="waiver-filter" id="filter-starting" onchange="filterWaiver()">
+                            <option value="">Any Starting</option>
+                            <option value="yes">Starting</option>
+                            <option value="no">Not Starting</option>
+                        </select>
+                    </div>
+
+                    <div class="roster-group">
+                        <div class="roster-table-wrapper">
+                            <table class="roster-table">
+                                <thead>
+                                    <tr>
+                                        <th>Player</th>
+                                        <th>MLB Team</th>
+                                        <th>Pts</th>
+                                        <th class="hide-mobile">Eligible</th>
+                                        <th>Starting</th>
+                                        <th>Trending</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="waiver-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="waiver-pagination" id="waiver-pagination"></div>
+
+                </div><!-- /view-waiver -->
+
+                <!-- Available SP View -->
+                {% if can_access_available_sp %}
+                <div id="view-available-sp" style="display:none;">
+                    <div id="available-sp-list">
+                        <p class="text-muted" style="padding:32px;text-align:center;">Loading…</p>
+                    </div>
+                </div>
+                {% else %}
+                <div id="view-available-sp-locked" style="display:none;">
+                    {% include "home/partials/_upgrade_prompt.html" with feature="Available SP" required_tier="Pro" %}
+                </div>
+                {% endif %}
+
+                <!-- Matchups View -->
+                {% if can_access_matchups %}
+                <div id="view-matchups" style="display:none;">
+                    <p class="text-muted" style="padding:32px;text-align:center;">Matchups coming soon.</p>
+                </div>
+                {% else %}
+                <div id="view-matchups-locked" style="display:none;">
+                    {% include "home/partials/_upgrade_prompt.html" with feature="Hitter vs Pitcher Matchups" required_tier="Pro" %}
+                </div>
+                {% endif %}
+
+            </div><!-- /teams-content -->
+        </div><!-- /teams-layout -->
+
         {% endif %}
 
     </div>
 </section>
+
+<script>
+const TOGGLE_KEEPER_URL = '{% url "home:toggle_keeper" %}';
+
+function getCsrfToken() {
+    return document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+function toggleKeeper(btn) {
+    fetch(TOGGLE_KEEPER_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: new URLSearchParams({
+            player_key: btn.dataset.playerKey,
+            team_key:   btn.dataset.teamKey,
+        }),
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.classList.toggle('keeper-active', data.kept);
+        btn.title = data.kept ? 'Remove keeper' : 'Mark as keeper';
+    });
+}
+
+const SAVE_AI_CONFIG_URL = '{% url "home:save_ai_config" %}';
+
+function _aiModal()          { return document.getElementById('ai-config-modal'); }
+function _aiFormat()         { return _aiModal().dataset.leagueFormat; }
+function _aiWeeklyLimit()    { return parseInt(_aiModal().dataset.moveLimit)      || null; }
+function _aiSeasonLimit()    { return parseInt(_aiModal().dataset.seasonLimit)    || null; }
+function _aiRemainingWeeks() { return parseInt(_aiModal().dataset.remainingWeeks) || 0; }
+
+function toggleAIManager(enabled) {
+    document.querySelector('.ai-manager-label').textContent = enabled ? 'Disable AI Manager' : 'Enable AI Manager';
+    // TODO: wire up AI Manager logic
+}
+
+function validateAIMoves() {
+    const fmt     = _aiFormat();
+    const saveBtn = document.querySelector('.btn-ai-save');
+    let invalid   = false;
+
+    if (fmt === 'h2h') {
+        const total   = parseInt(document.getElementById('ai-max-total').value) || 0;
+        const limit   = _aiWeeklyLimit();
+        const over    = limit !== null && total > limit;
+        const errorEl = document.getElementById('ai-error-h2h');
+        errorEl.textContent   = over ? `Cannot exceed the league's weekly limit of ${limit} moves.` : '';
+        errorEl.style.display = over ? 'block' : 'none';
+        invalid = over;
+    } else {
+        const hitter    = parseInt(document.getElementById('ai-max-hitter').value)  || 0;
+        const pitcher   = parseInt(document.getElementById('ai-max-pitcher').value) || 0;
+        const weeks     = _aiRemainingWeeks();
+        const projected = (hitter + pitcher) * weeks;
+        const seasonLim = _aiSeasonLimit();
+        const over      = seasonLim !== null && projected > seasonLim;
+        const errorEl   = document.getElementById('ai-error-roto');
+
+        document.getElementById('ai-projected-total').textContent =
+            weeks > 0 ? `${projected} moves (${hitter + pitcher}/wk × ${weeks} wks)` : '—';
+
+        errorEl.textContent   = over
+            ? `Projected ${projected} moves exceeds the season limit of ${seasonLim}.` : '';
+        errorEl.style.display = over ? 'block' : 'none';
+        invalid = over;
+    }
+
+    saveBtn.disabled      = invalid;
+    saveBtn.style.opacity = invalid ? '0.4' : '';
+}
+
+function openAIConfig() {
+    const fmt = _aiFormat();
+    document.getElementById('ai-body-h2h').style.display  = fmt === 'h2h'  ? 'flex' : 'none';
+    document.getElementById('ai-body-roto').style.display = fmt === 'roto' ? 'flex' : 'none';
+    _aiModal().style.display = 'flex';
+    validateAIMoves();
+}
+
+function closeAIConfig() {
+    _aiModal().style.display = 'none';
+}
+
+function closeAIConfigOutside(e) {
+    if (e.target === _aiModal()) closeAIConfig();
+}
+
+function saveAIConfig() {
+    const fmt     = _aiFormat();
+    const saveBtn = document.querySelector('.btn-ai-save');
+    saveBtn.disabled    = true;
+    saveBtn.textContent = 'Saving…';
+
+    const params = { team_key: TEAM_KEY, league_format: fmt };
+    if (fmt === 'h2h') {
+        params.max_total_moves = document.getElementById('ai-max-total').value;
+    } else {
+        params.max_hitter_moves  = document.getElementById('ai-max-hitter').value;
+        params.max_pitcher_moves = document.getElementById('ai-max-pitcher').value;
+    }
+
+    fetch(SAVE_AI_CONFIG_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: new URLSearchParams(params),
+    })
+    .then(r => r.json())
+    .then(data => { if (data.ok) closeAIConfig(); })
+    .finally(() => {
+        saveBtn.disabled    = false;
+        saveBtn.textContent = 'Save';
+    });
+}
+
+let availableSpLoaded = false;
+
+const ALL_VIEWS = ['roster', 'waiver', 'available-sp', 'available-sp-locked', 'matchups', 'matchups-locked'];
+
+function showTeamView(view, updateHash = true) {
+    ALL_VIEWS.forEach(v => {
+        const el = document.getElementById('view-' + v);
+        if (el) el.style.display = (v === view) ? 'block' : 'none';
+    });
+    document.getElementById('nav-roster').classList.toggle('active', view === 'roster');
+    document.getElementById('nav-waiver').classList.toggle('active', view === 'waiver');
+    if (updateHash) history.replaceState(null, '', '#' + view);
+    if (view === 'waiver') {
+        initWaiverFilters();
+        loadWaiver(1);
+    }
+    if (view === 'available-sp' && !availableSpLoaded) {
+        loadAvailableSP();
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const hash = window.location.hash.replace('#', '');
+    const validViews = ['roster', 'waiver', 'available-sp'];
+    const view = validViews.includes(hash) ? hash : 'roster';
+    showTeamView(view, false);
+});
+
+const MLB_TEAMS = {
+    'AZ':  'Arizona Diamondbacks',  'ATL': 'Atlanta Braves',
+    'BAL': 'Baltimore Orioles',     'BOS': 'Boston Red Sox',
+    'CHC': 'Chicago Cubs',          'CWS': 'Chicago White Sox',
+    'CIN': 'Cincinnati Reds',       'CLE': 'Cleveland Guardians',
+    'COL': 'Colorado Rockies',      'DET': 'Detroit Tigers',
+    'FLA': 'Miami Marlins',         'MIA': 'Miami Marlins',
+    'HOU': 'Houston Astros',        'KAN': 'Kansas City Royals',
+    'KC':  'Kansas City Royals',    'LAA': 'Los Angeles Angels',
+    'LAD': 'Los Angeles Dodgers',   'MIL': 'Milwaukee Brewers',
+    'MIN': 'Minnesota Twins',       'NYM': 'New York Mets',
+    'NYY': 'New York Yankees',      'OAK': 'Athletics',
+    'PHI': 'Philadelphia Phillies', 'PIT': 'Pittsburgh Pirates',
+    'SD':  'San Diego Padres',      'SF':  'San Francisco Giants',
+    'SEA': 'Seattle Mariners',      'STL': 'St. Louis Cardinals',
+    'TB':  'Tampa Bay Rays',        'TEX': 'Texas Rangers',
+    'TOR': 'Toronto Blue Jays',     'WSH': 'Washington Nationals',
+};
+
+// --- Waiver wire state ---
+let waiverPage       = 1;
+let waiverTotalPages = 1;
+let waiverLoading    = false;
+const WAIVER_API     = '{% url "home:waiver_players_api" %}';
+const TEAM_KEY       = '{{ team.team_key }}';
+
+function initWaiverFilters() {
+    // Populate Teams dropdown from full MLB_TEAMS map
+    const teamSel = document.getElementById('filter-team');
+    if (teamSel && teamSel.options.length <= 1) {
+        const seen = new Set();
+        Object.entries(MLB_TEAMS)
+            .sort((a, b) => a[1].localeCompare(b[1]))
+            .forEach(([abbr, name]) => {
+                if (seen.has(name)) return;
+                seen.add(name);
+                const opt = document.createElement('option');
+                opt.value = abbr;
+                opt.textContent = name;
+                teamSel.appendChild(opt);
+            });
+    }
+
+    // Populate Positions dropdown
+    const posSel = document.getElementById('filter-position');
+    if (posSel && posSel.options.length <= 1) {
+        const positions = ['__batters:All Batters', '__pitchers:All Pitchers',
+                           'C', '1B', '2B', '3B', 'SS', 'OF', 'Util',
+                           'SP', 'RP', 'P'];
+        positions.forEach(entry => {
+            const [val, label] = entry.includes(':') ? entry.split(':') : [entry, entry];
+            const opt = document.createElement('option');
+            opt.value = val; opt.textContent = label;
+            posSel.appendChild(opt);
+        });
+    }
+}
+
+function getWaiverParams(page) {
+    return new URLSearchParams({
+        key:      TEAM_KEY,
+        page:     page,
+        team:     document.getElementById('filter-team').value,
+        position: document.getElementById('filter-position').value,
+        status:   document.getElementById('filter-status').value,
+        starting: document.getElementById('filter-starting').value,
+    });
+}
+
+function loadWaiver(page) {
+    if (waiverLoading) return;
+    waiverLoading = true;
+
+    const tbody    = document.querySelector('#view-waiver .roster-table tbody');
+    const pgBar    = document.getElementById('waiver-pagination');
+    if (pgBar) pgBar.innerHTML = '<span class="text-muted" style="font-size:0.8rem;">Loading…</span>';
+
+    fetch(`${WAIVER_API}?${getWaiverParams(page)}`)
+        .then(r => r.json())
+        .then(data => {
+            tbody.innerHTML = data.html;
+            waiverPage = data.page;
+            // total_pages is known when server-side filtering, otherwise discover from has_more
+            if (data.total_pages) {
+                waiverTotalPages = data.total_pages;
+            } else {
+                waiverTotalPages = data.has_more
+                    ? Math.max(waiverTotalPages, page + 1)
+                    : page;
+            }
+            renderWaiverPagination();
+        })
+        .catch(() => { if (pgBar) pgBar.innerHTML = ''; })
+        .finally(() => { waiverLoading = false; });
+}
+
+function renderWaiverPagination() {
+    const pgBar = document.getElementById('waiver-pagination');
+    if (!pgBar) return;
+    pgBar.innerHTML = '';
+
+    const WINDOW = 2; // pages shown either side of current
+    for (let i = 1; i <= waiverTotalPages; i++) {
+        const nearCurrent = Math.abs(i - waiverPage) <= WINDOW;
+        const isEdge      = i === 1 || i === waiverTotalPages;
+
+        if (!nearCurrent && !isEdge) {
+            // Insert ellipsis once per gap
+            const last = pgBar.lastElementChild;
+            if (last && last.textContent !== '…') {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.className   = 'waiver-page-dots';
+                pgBar.appendChild(dots);
+            }
+            continue;
+        }
+
+        const btn = document.createElement('button');
+        btn.className   = 'roster-date-nav waiver-page-btn' + (i === waiverPage ? ' active-sort' : '');
+        btn.textContent = i;
+        btn.onclick     = () => loadWaiver(i);
+        pgBar.appendChild(btn);
+    }
+}
+
+function sortWaiver(field, btn) {
+    document.querySelectorAll('.waiver-sort-btn').forEach(b => b.classList.remove('active-sort'));
+    btn.classList.add('active-sort');
+    waiverTotalPages = 1;
+    loadWaiver(1);
+}
+
+function filterWaiver() {
+    waiverTotalPages = 1;
+    loadWaiver(1);
+}
+
+const AVAILABLE_SP_API = '{% url "home:available_sp_api" %}';
+
+function loadAvailableSP() {
+    const listEl = document.getElementById('available-sp-list');
+    listEl.innerHTML = '<p class="text-muted" style="padding:32px;text-align:center;">Loading…</p>';
+
+    fetch(`${AVAILABLE_SP_API}?key=${TEAM_KEY}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error || !data.days) {
+                listEl.innerHTML = '<p class="text-muted" style="padding:32px;text-align:center;">Could not load data.</p>';
+                return;
+            }
+            availableSpLoaded = true;
+            renderAvailableSpList(data.days);
+        })
+        .catch(() => {
+            listEl.innerHTML = '<p class="text-muted" style="padding:32px;text-align:center;">Could not load data.</p>';
+        });
+}
+
+function renderAvailableSpList(days) {
+    const listEl = document.getElementById('available-sp-list');
+    listEl.innerHTML = '';
+
+    days.forEach(day => {
+        const section = document.createElement('div');
+        section.className = 'roster-group available-sp-day-group';
+
+        const confirmedBadge = day.confirmed
+            ? `<span class="sp-day-count">${day.count} starter${day.count !== 1 ? 's' : ''}</span>`
+            : `<span class="sp-day-count sp-day-unconfirmed">lineup TBD</span>`;
+
+        section.innerHTML = `
+            <h2 class="roster-group-title available-sp-day-header">
+                <span class="sp-day-label">${day.label}</span>
+                <span class="sp-day-date">${day.short_date}</span>
+                ${confirmedBadge}
+            </h2>
+            <div class="roster-table-wrapper">
+                <table class="roster-table">
+                    <thead>
+                        <tr>
+                            <th>Player</th>
+                            <th>Team</th>
+                            <th>Matchup</th>
+                            <th>Pts</th>
+                            <th class="hide-mobile">Eligible</th>
+                            <th>Trending</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>${day.html}</tbody>
+                </table>
+            </div>`;
+
+        listEl.appendChild(section);
+    });
+}
+</script>
 {% endblock %}

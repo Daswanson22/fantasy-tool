@@ -1,9 +1,135 @@
+import random
+import secrets
+import time
+
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
-from .forms import SignUpForm
+from django.contrib.auth.decorators import login_required
+from django.core.mail import send_mail
+from django.core.cache import cache
+from django.conf import settings as django_settings
+from django.urls import reverse
+from .forms import SignUpForm, LoginEmailForm, LoginCodeForm, UsernameForm, EmailChangeForm
+from .models import PendingEmailChange
+
+User = get_user_model()
+
+_OTP_TTL = 600  # 10 minutes
+_OTP_SEND_WINDOW = 900
+_OTP_VERIFY_WINDOW = 900
+_OTP_SEND_LIMIT = 5
+_OTP_VERIFY_LIMIT = 10
+
+
+def _client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded:
+        return forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
+def _rate_key(prefix, request, email=''):
+    return f'{prefix}:{_client_ip(request)}:{(email or "").strip().lower()}'
+
+
+def _is_rate_limited(key, limit):
+    return int(cache.get(key, 0) or 0) >= limit
+
+
+def _bump_rate_limit(key, timeout):
+    if cache.add(key, 1, timeout=timeout):
+        return
+    try:
+        cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=timeout)
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('home:dashboard')
+
+    # --- step 2: verify code ---
+    if request.method == 'POST' and 'code' in request.POST:
+        form = LoginCodeForm(request.POST)
+        email = request.session.get('login_email', '')
+        verify_key = _rate_key('otp:verify', request, email)
+        if _is_rate_limited(verify_key, _OTP_VERIFY_LIMIT):
+            messages.error(request, 'Too many code attempts. Please wait and try again.')
+            return render(request, 'accounts/login.html', {
+                'step': 'verify',
+                'code_form': form,
+                'email': email,
+            })
+
+        if form.is_valid():
+            entered = form.cleaned_data['code'].strip()
+            stored = request.session.get('login_otp')
+            expires = request.session.get('login_otp_expires', 0)
+            if stored and secrets.compare_digest(str(entered), str(stored)) and time.time() < expires:
+                try:
+                    user = User.objects.get(email__iexact=email)
+                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+                    cache.delete(verify_key)
+                    # clean up session keys
+                    for k in ('login_otp', 'login_otp_expires', 'login_email'):
+                        request.session.pop(k, None)
+                    return redirect('home:dashboard')
+                except User.DoesNotExist:
+                    _bump_rate_limit(verify_key, _OTP_VERIFY_WINDOW)
+                    messages.error(request, 'No account found for that email.')
+            else:
+                _bump_rate_limit(verify_key, _OTP_VERIFY_WINDOW)
+                messages.error(request, 'Invalid or expired code. Please try again.')
+        return render(request, 'accounts/login.html', {
+            'step': 'verify',
+            'code_form': form,
+            'email': email,
+        })
+
+    # --- step 1: submit email ---
+    if request.method == 'POST':
+        form = LoginEmailForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            send_key = _rate_key('otp:send', request, email)
+            if _is_rate_limited(send_key, _OTP_SEND_LIMIT):
+                messages.error(request, 'Too many code requests. Please wait and try again.')
+                return render(request, 'accounts/login.html', {'step': 'email', 'email_form': form})
+
+            if not User.objects.filter(email__iexact=email).exists():
+                _bump_rate_limit(send_key, _OTP_SEND_WINDOW)
+                messages.error(request, 'No account found with that email address.')
+                return render(request, 'accounts/login.html', {'step': 'email', 'email_form': form})
+
+            code = f'{random.SystemRandom().randint(0, 999999):06d}'
+            request.session['login_otp'] = code
+            request.session['login_otp_expires'] = time.time() + _OTP_TTL
+            request.session['login_email'] = email
+            cache.delete(_rate_key('otp:verify', request, email))
+
+            send_mail(
+                subject='Your Fantasy Tool login code',
+                message=f'Your login code is: {code}\n\nThis code expires in 10 minutes.',
+                from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@fantasytool.com'),
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            _bump_rate_limit(send_key, _OTP_SEND_WINDOW)
+            return render(request, 'accounts/login.html', {
+                'step': 'verify',
+                'code_form': LoginCodeForm(),
+                'email': email,
+            })
+        return render(request, 'accounts/login.html', {'step': 'email', 'email_form': form})
+
+    return render(request, 'accounts/login.html', {
+        'step': 'email',
+        'email_form': LoginEmailForm(),
+    })
 
 
 def complete_yahoo_registration(request):
@@ -37,7 +163,7 @@ def signup(request):
         form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            login(request, user, backend='django.contrib.auth.backends.ModelBackend')
             messages.success(request, f'Welcome to Fantasy Tool, {user.username}!')
             return redirect('home:index')
     else:
@@ -46,10 +172,86 @@ def signup(request):
     return render(request, 'accounts/signup.html', {'form': form})
 
 
+@login_required
+def manage_account(request):
+    username_form = UsernameForm(instance=request.user, current_user=request.user)
+    email_form = EmailChangeForm(current_user=request.user, initial={'email': request.user.email})
+
+    if request.method == 'POST':
+        if 'save_username' in request.POST:
+            username_form = UsernameForm(request.POST, instance=request.user, current_user=request.user)
+            if username_form.is_valid():
+                username_form.save()
+                messages.success(request, 'Username updated successfully.')
+                return redirect('accounts:manage_account')
+
+        elif 'save_notifications' in request.POST:
+            profile = request.user.profile
+            profile.email_notifications = 'email_notifications' in request.POST
+            profile.save(update_fields=['email_notifications'])
+            messages.success(request, 'Notification preferences saved.')
+            return redirect('accounts:manage_account')
+
+        elif 'request_email_change' in request.POST:
+            email_form = EmailChangeForm(request.POST, current_user=request.user)
+            if email_form.is_valid():
+                new_email = email_form.cleaned_data['email']
+                pending = PendingEmailChange.create_for_user(request.user, new_email)
+                verify_url = request.build_absolute_uri(
+                    reverse('accounts:verify_email_change', args=[pending.token])
+                )
+                send_mail(
+                    subject='Verify your new email address',
+                    message=(
+                        f'Hi {request.user.username},\n\n'
+                        f'Click the link below to confirm your new email address:\n\n'
+                        f'{verify_url}\n\n'
+                        f'This link expires in {PendingEmailChange.TOKEN_TTL_HOURS} hours.\n\n'
+                        f'If you did not request this change, you can ignore this email.'
+                    ),
+                    from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@fantasytool.com'),
+                    recipient_list=[new_email],
+                    fail_silently=False,
+                )
+                messages.success(request, f'Verification email sent to {new_email}. Click the link to confirm your new address.')
+                return redirect('accounts:manage_account')
+
+    return render(request, 'accounts/manage_account.html', {
+        'username_form': username_form,
+        'email_form': email_form,
+        'stripe_price_pro':   django_settings.STRIPE_PRICE_PRO,
+        'stripe_price_elite': django_settings.STRIPE_PRICE_ELITE,
+    })
+
+
+def verify_email_change(request, token):
+    try:
+        pending = PendingEmailChange.objects.select_related('user').get(token=token)
+    except PendingEmailChange.DoesNotExist:
+        messages.error(request, 'This verification link is invalid.')
+        return redirect('accounts:manage_account')
+
+    if pending.is_expired():
+        pending.delete()
+        messages.error(request, 'This verification link has expired. Please request a new one.')
+        return redirect('accounts:manage_account')
+
+    user = pending.user
+    user.email = pending.new_email
+    user.save(update_fields=['email'])
+    pending.delete()
+
+    messages.success(request, f'Your email address has been updated to {user.email}.')
+    return redirect('accounts:manage_account')
+
+
 @staff_member_required
 def yahoo_debug(request):
     """Temporary: shows the exact OAuth URL social-auth will send to Yahoo."""
-    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    if not django_settings.DEBUG:
+        raise Http404('Not found')
+
+    from urllib.parse import urlparse, parse_qs
     from django.urls import reverse
     from social_django.utils import load_strategy, load_backend
 

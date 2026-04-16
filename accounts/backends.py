@@ -1,7 +1,53 @@
-import base64
-import json
+import logging
+from functools import lru_cache
 
+import jwt
+import requests
+from django.conf import settings
 from social_core.backends.yahoo import YahooOAuth2
+
+logger = logging.getLogger(__name__)
+YAHOO_OIDC_CONFIGURATION_URL = 'https://api.login.yahoo.com/.well-known/openid-configuration'
+
+
+@lru_cache(maxsize=1)
+def _get_yahoo_oidc_config():
+    resp = requests.get(YAHOO_OIDC_CONFIGURATION_URL, timeout=5)
+    resp.raise_for_status()
+    return resp.json()
+
+
+@lru_cache(maxsize=1)
+def _get_yahoo_jwks_client():
+    config = _get_yahoo_oidc_config()
+    return jwt.PyJWKClient(config['jwks_uri'])
+
+
+def _validate_id_token(id_token):
+    config = _get_yahoo_oidc_config()
+    issuer = config.get('issuer', 'https://api.login.yahoo.com')
+    audience = settings.SOCIAL_AUTH_YAHOO_OAUTH2_KEY
+    if not audience:
+        raise ValueError('Missing SOCIAL_AUTH_YAHOO_OAUTH2_KEY.')
+
+    # Retry once with a fresh JWKS cache to handle key rotation.
+    for attempt in (1, 2):
+        try:
+            signing_key = _get_yahoo_jwks_client().get_signing_key_from_jwt(id_token)
+            return jwt.decode(
+                id_token,
+                signing_key.key,
+                algorithms=['RS256'],
+                audience=audience,
+                issuer=issuer,
+                options={'require': ['sub', 'exp', 'iat']},
+                leeway=5,
+            )
+        except Exception:
+            if attempt == 1:
+                _get_yahoo_jwks_client.cache_clear()
+                continue
+            raise
 
 
 class YahooFantasyOAuth2(YahooOAuth2):
@@ -31,26 +77,21 @@ class YahooFantasyOAuth2(YahooOAuth2):
 
     def user_data(self, access_token, *args, **kwargs):
         """
-        Extract user data from the id_token JWT in the token response instead
-        of calling the userinfo endpoint, which returns 403 unless the Yahoo
-        app has explicit profile/OpenID permissions enabled.
+        Extract user data from a verified id_token in the token response.
+        We do not trust unverified JWT payloads.
         """
         response = kwargs.get('response', {})
         id_token = response.get('id_token', '')
 
         if id_token:
             try:
-                # JWT is three base64url segments: header.payload.signature
-                payload_b64 = id_token.split('.')[1]
-                # Restore padding stripped by base64url encoding
-                payload_b64 += '=' * (4 - len(payload_b64) % 4)
-                claims = json.loads(base64.urlsafe_b64decode(payload_b64))
+                claims = _validate_id_token(id_token)
                 # Ensure xoauth_yahoo_guid is available for EXTRA_DATA pipeline
                 if 'xoauth_yahoo_guid' not in claims:
                     claims['xoauth_yahoo_guid'] = response.get('xoauth_yahoo_guid', '')
                 return claims
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning('Yahoo id_token validation failed: %s', exc)
 
         # Fallback: build minimal user data from the token response fields
         guid = response.get('xoauth_yahoo_guid', '')

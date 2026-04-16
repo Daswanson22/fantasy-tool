@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Account - Fantasy Tool{% endblock %}
+
+{% block content %}
+<section class="dashboard-section">
+    <div class="container">
+
+        <div class="dashboard-header">
+            <div>
+                <h1>Manage <span class="text-accent">Account</span></h1>
+                <p class="dashboard-subtitle">Update your profile, subscription, and connected accounts.</p>
+            </div>
+            <a href="{% url 'home:dashboard' %}" class="btn btn-outline">Back to Dashboard</a>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <!-- Profile -->
+        <div class="manage-section">
+            <h2 class="manage-section-title">&#128100; Profile</h2>
+
+            <!-- Username -->
+            <div class="manage-card manage-card-narrow" style="margin-bottom: 16px;">
+                <h3 class="manage-card-title">Username</h3>
+                <form method="post" class="manage-form" novalidate>
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="id_username">Username</label>
+                        {{ username_form.username }}
+                        {% if username_form.username.errors %}
+                            <span class="form-error">{{ username_form.username.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="manage-form-actions">
+                        <button type="submit" name="save_username" class="btn btn-primary">Save Username</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Email -->
+            <div class="manage-card manage-card-narrow">
+                <h3 class="manage-card-title">Email Address</h3>
+                <p class="manage-card-subtitle">Current: <strong>{{ request.user.email }}</strong></p>
+                <form method="post" class="manage-form" novalidate>
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="id_email">New email address</label>
+                        {{ email_form.email }}
+                        {% if email_form.email.errors %}
+                            <span class="form-error">{{ email_form.email.errors.0 }}</span>
+                        {% endif %}
+                        <span class="form-hint">A verification link will be sent to the new address before the change takes effect.</span>
+                    </div>
+                    <div class="manage-form-actions">
+                        <button type="submit" name="request_email_change" class="btn btn-primary">Send Verification Email</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="manage-section" style="margin-top: 32px;">
+            <h2 class="manage-section-title">&#128276; Notifications</h2>
+            <div class="manage-card manage-card-narrow">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    <div class="toggle-row">
+                        <div class="toggle-row-text">
+                            <span class="toggle-row-label">Email notifications</span>
+                            <span class="toggle-row-hint">Receive emails about waiver wire alerts, trade updates, and weekly recaps.</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" name="email_notifications" {% if request.user.profile.email_notifications %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="manage-form-actions" style="margin-top: 24px;">
+                        <button type="submit" name="save_notifications" class="btn btn-primary">Save Preferences</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Subscription -->
+        <div class="manage-section" style="margin-top: 32px;">
+            <h2 class="manage-section-title">&#128176; Subscription</h2>
+            <div class="manage-card">
+
+                {% with tier=request.user.profile.tier %}
+
+                <div class="plan-options plan-options-3col">
+
+                    <!-- Free -->
+                    <div class="plan-option {% if tier == 'free' %}plan-option-current{% endif %}">
+                        <div class="plan-option-header">
+                            <span class="plan-option-name">Free</span>
+                            <span class="plan-option-price">$0<span>/mo</span></span>
+                        </div>
+                        <ul class="plan-option-features">
+                            <li>1 league sync</li>
+                            <li>Advanced Waiver Wire</li>
+                        </ul>
+                        {% if tier == 'free' %}
+                            <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                        {% else %}
+                            <a href="{% url 'accounts:billing_portal' %}" class="btn btn-outline btn-block">Downgrade</a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Pro -->
+                    <div class="plan-option {% if tier == 'pro' %}plan-option-current{% elif tier == 'free' %}plan-option-featured{% endif %}">
+                        <div class="plan-option-header">
+                            <span class="plan-option-name">Pro</span>
+                            <span class="plan-option-price">$4.99<span>/mo</span></span>
+                        </div>
+                        <ul class="plan-option-features">
+                            <li>3 league syncs</li>
+                            <li>Advanced Waiver Wire</li>
+                            <li>Available SP</li>
+                            <li>Hitter vs Pitcher Matchups</li>
+                            <li>AI General Manager <em style="font-size:0.75rem;opacity:0.6;">(soon)</em></li>
+                        </ul>
+                        {% if tier == 'pro' %}
+                            <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                        {% elif tier == 'free' %}
+                            {% if stripe_price_pro %}
+                                <a href="{% url 'accounts:billing_checkout' stripe_price_pro %}" class="btn btn-primary btn-block">Upgrade to Pro</a>
+                            {% endif %}
+                        {% else %}
+                            <a href="{% url 'accounts:billing_portal' %}" class="btn btn-outline btn-block">Switch to Pro</a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Elite -->
+                    <div class="plan-option {% if tier == 'elite' %}plan-option-current{% elif tier == 'pro' %}plan-option-featured{% endif %}">
+                        <div class="plan-option-header">
+                            <span class="plan-option-name">Elite</span>
+                            <span class="plan-option-price">$9.99<span>/mo</span></span>
+                        </div>
+                        <ul class="plan-option-features">
+                            <li>Unlimited league syncs</li>
+                            <li>Advanced Waiver Wire</li>
+                            <li>Available SP</li>
+                            <li>Hitter vs Pitcher Matchups</li>
+                            <li>AI General Manager <em style="font-size:0.75rem;opacity:0.6;">(soon)</em></li>
+                        </ul>
+                        {% if tier == 'elite' %}
+                            <button class="btn btn-outline btn-block" disabled>Current Plan</button>
+                        {% else %}
+                            {% if stripe_price_elite %}
+                                <a href="{% url 'accounts:billing_checkout' stripe_price_elite %}" class="btn btn-primary btn-block">Upgrade to Elite</a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+
+                </div>
+
+                {% if tier != 'free' %}
+                <div class="plan-cancel">
+                    <a href="{% url 'accounts:billing_portal' %}">Cancel subscription</a>
+                </div>
+                {% endif %}
+
+                {% endwith %}
+
+            </div>
+        </div>
+
+        <!-- Remaining cards (coming soon) -->
+        <div class="dashboard-grid" style="margin-top: 32px;">
+            <div class="dashboard-card dashboard-card-locked">
+                <div class="dashboard-card-icon">&#128279;</div>
+                <h3>Connected Accounts</h3>
+                <p>Manage your linked Yahoo Fantasy account.</p>
+                <span class="locked-label">Coming soon</span>
+            </div>
+
+            <div class="dashboard-card dashboard-card-locked">
+                <div class="dashboard-card-icon">&#128274;</div>
+                <h3>Security</h3>
+                <p>Manage login settings and active sessions.</p>
+                <span class="locked-label">Coming soon</span>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}

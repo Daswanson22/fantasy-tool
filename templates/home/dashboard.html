@@ -127,15 +127,11 @@
 
         <!-- Dashboard Grid -->
         <div class="dashboard-grid">
-            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
-                <div class="dashboard-card-icon">&#128202;</div>
-                <h3>My Teams</h3>
-                <p>View your fantasy leagues and current rosters.</p>
-                {% if yahoo_connected %}
-                    <a href="{% url 'home:teams' %}" class="btn btn-primary">View Teams</a>
-                {% else %}
-                    <span class="locked-label">Connect Yahoo to unlock</span>
-                {% endif %}
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon">&#9881;</div>
+                <h3>Manage Account</h3>
+                <p>Update your profile, subscription, and connected accounts.</p>
+                <a href="{% url 'accounts:manage_account' %}" class="btn btn-primary">Manage Account</a>
             </div>
 
             <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">

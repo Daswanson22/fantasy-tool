@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Log In - Fantasy Tool{% endblock %}
+
+{% block content %}
+<section class="auth-section">
+    <div class="auth-container">
+
+        <!-- Left Panel -->
+        <div class="auth-panel auth-panel-left">
+            <div class="auth-brand">
+                <span class="logo-icon">&#9917;</span>
+                <span>Fantasy Tool</span>
+            </div>
+            <h2 class="auth-headline">Welcome back. Your edge awaits.</h2>
+            <ul class="auth-benefits">
+                <li>
+                    <span class="benefit-icon">&#128202;</span>
+                    <div>
+                        <strong>AI-Powered Projections</strong>
+                        <p>Real-time player analysis updated every week</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="benefit-icon">&#9878;</span>
+                    <div>
+                        <strong>Trade Analyzer</strong>
+                        <p>Know instantly if a trade helps or hurts your team</p>
+                    </div>
+                </li>
+                <li>
+                    <span class="benefit-icon">&#127942;</span>
+                    <div>
+                        <strong>Yahoo Fantasy Integration</strong>
+                        <p>Connect your Yahoo team and get personalized advice</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="auth-panel auth-panel-right">
+            <div class="auth-form-wrapper">
+
+                {% if step == 'verify' %}
+                    <!-- Step 2: Enter the code -->
+                    <h1 class="auth-title">Check your email</h1>
+                    <p class="auth-subtitle">We sent a 6-digit code to <strong>{{ email }}</strong>. It expires in 10 minutes.</p>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" class="auth-form" novalidate>
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="id_code">Login code</label>
+                            {{ code_form.code }}
+                            {% if code_form.code.errors %}
+                                <span class="form-error">{{ code_form.code.errors.0 }}</span>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">Verify Code</button>
+                    </form>
+
+                    <p class="auth-login-link">
+                        Wrong email? <a href="{% url 'accounts:login' %}">Go back</a>
+                    </p>
+
+                {% else %}
+                    <!-- Step 1: Choose login method -->
+                    <h1 class="auth-title">Sign in to Fantasy Tool</h1>
+                    <p class="auth-subtitle">Pick your preferred sign-in method.</p>
+
+                    <!-- Yahoo OAuth -->
+                    <a href="{% url 'social:begin' 'yahoo-oauth2' %}" class="btn-yahoo">
+                        <svg class="yahoo-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M0 0h5.765l3.618 5.886L13.001 0H18.75L11.09 11.388V18H8.005v-6.63L0 0zm17.778 9.909h-3.323l6.545 8.091H24l-6.222-8.091zM14.455 18l2.182-2.727H13.09L10.91 18h3.545z"/>
+                        </svg>
+                        Continue with Yahoo Fantasy
+                        <span class="yahoo-badge">Connect League</span>
+                    </a>
+
+                    <div class="auth-divider">
+                        <span>or sign in with email</span>
+                    </div>
+
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <form method="post" class="auth-form" novalidate>
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="id_email">Email address</label>
+                            {{ email_form.email }}
+                            {% if email_form.email.errors %}
+                                <span class="form-error">{{ email_form.email.errors.0 }}</span>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block btn-lg">Send Login Code</button>
+                    </form>
+
+                    <p class="auth-login-link">
+                        Don't have an account? <a href="{% url 'accounts:signup' %}">Sign up free</a>
+                    </p>
+                {% endif %}
+
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}

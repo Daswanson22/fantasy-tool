@@ -1,7 +1,15 @@
-{% if player.trending %}
-<span class="trending-badge trending-{{ player.trending }}">
-    {% if player.trending == 'up' %}&#8593;{% elif player.trending == 'down' %}&#8595;{% else %}{{ player.trending }}{% endif %}
+{% if player.trending == 'up' %}
+<span class="trending-badge trending-up" title="Last week avg vs last month avg">
+    &#8599; {% if player.trending_delta %}+{{ player.trending_delta }}{% endif %}
+</span>
+{% elif player.trending == 'down' %}
+<span class="trending-badge trending-down" title="Last week avg vs last month avg">
+    &#8600; {% if player.trending_delta %}{{ player.trending_delta }}{% endif %}
+</span>
+{% elif player.trending == 'steady' %}
+<span class="trending-badge trending-steady" title="Last week avg vs last month avg">
+    &#8212; {% if player.trending_delta %}{% if player.trending_delta >= 0 %}+{% endif %}{{ player.trending_delta }}{% endif %}
 </span>
 {% else %}
-<span class="trending-badge trending-none" title="Coming soon">—</span>
+<span class="trending-badge trending-none" title="No trend data available">—</span>
 {% endif %}

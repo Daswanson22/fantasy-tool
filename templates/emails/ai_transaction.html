@@ -1,0 +1,85 @@
+{% extends "emails/base.html" %}
+
+{% block body %}
+  <p style="margin:0 0 8px;font-size:16px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;">AI Manager</p>
+  <h1 style="margin:0 0 8px;font-size:28px;font-weight:700;color:#0f172a;line-height:1.2;">Transaction Complete</h1>
+  <p style="margin:0 0 32px;font-size:15px;color:#64748b;">
+    Hi <strong>{{ username }}</strong>, your AI Manager made the following move on your behalf.
+  </p>
+
+  <!-- Add / Drop Cards -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+    <tr>
+      <!-- ADD -->
+      <td width="48%" valign="top" style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:0.08em;">&#43; Added</p>
+        <p style="margin:0 0 4px;font-size:18px;font-weight:700;color:#0f172a;">{{ add_player.name }}</p>
+        <p style="margin:0;font-size:13px;color:#64748b;">
+          {{ add_player.eligible_positions }}
+          {% if add_player.days_to_start is not None %}
+            &middot;
+            {% if add_player.days_to_start == 0 %}
+              Starts <strong style="color:#16a34a;">today</strong>
+            {% elif add_player.days_to_start == 1 %}
+              Starts <strong>tomorrow</strong>
+            {% else %}
+              Starts in <strong>{{ add_player.days_to_start }} day{{ add_player.days_to_start|pluralize }}</strong>
+            {% endif %}
+          {% endif %}
+        </p>
+      </td>
+      <td width="4%"></td>
+      <!-- DROP -->
+      <td width="48%" valign="top" style="background-color:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:18px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#ea580c;text-transform:uppercase;letter-spacing:0.08em;">&#8722; Dropped</p>
+        <p style="margin:0 0 4px;font-size:18px;font-weight:700;color:#0f172a;">{{ drop_player.name }}</p>
+        <p style="margin:0;font-size:13px;color:#64748b;">{{ drop_player.eligible_positions }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Reason -->
+  {% if reason %}
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr>
+      <td style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Why</p>
+        <p style="margin:0;font-size:14px;color:#475569;line-height:1.6;">{{ reason }}</p>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- Roster moves summary -->
+  {% if roster_moves %}
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr>
+      <td style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 18px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;">Lineup Adjustments</p>
+        {% for move in roster_moves %}
+        <p style="margin:0 0 4px;font-size:13px;color:#475569;">
+          &rsaquo; {{ move.player_name }}: {{ move.from_position }} &rarr; {{ move.to_position }}
+        </p>
+        {% endfor %}
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- CTA -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr>
+      <td align="center">
+        <a href="{{ yahoo_team_url }}"
+           style="display:inline-block;background-color:#3b82f6;color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:14px 36px;border-radius:8px;">
+          View Your Team on Yahoo
+        </a>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0;font-size:13px;color:#94a3b8;line-height:1.6;">
+    To stop receiving these notifications, turn off email alerts in your
+    <a href="https://thefantasylab.com/accounts/manage/" style="color:#64748b;">account settings</a>.
+  </p>
+{% endblock %}

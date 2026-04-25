@@ -124,12 +124,12 @@
                 <div class="pricing-amount">$0<span>/month</span></div>
                 <ul class="pricing-features">
                     <li>&#10003; 1 league sync</li>
-                    <li>&#10003; Player Trends</li>
-                    <li>&#10003; Batter Matchups</li>
+                    <li>&#10003; Player Trend Analysis</li>
+                    <li>&#10003; Waiver Wire Recommendations</li>
+                    <li>&#10003; Available SP Tracker</li>
                     <li>&#10003; Daily Starters</li>
-                    <li>&#10003; Basic Projections</li>
                 </ul>
-                <a href="#" class="btn btn-outline btn-block">Get Started</a>
+                <a href="{% url 'accounts:signup' %}" class="btn btn-outline btn-block">Get Started</a>
             </div>
             <div class="pricing-card pricing-card-featured">
                 <span class="pricing-badge">Most Popular</span>
@@ -137,25 +137,33 @@
                 <div class="pricing-amount">$4.99<span>/month</span></div>
                 <ul class="pricing-features">
                     <li>&#10003; 3 league syncs</li>
-                    <li>&#10003; Batter Matchups</li>
+                    <li>&#10003; Player Trend Analysis</li>
+                    <li>&#10003; Waiver Wire Recommendations</li>
+                    <li>&#10003; Available SP Tracker</li>
                     <li>&#10003; Daily Starters</li>
-                    <li>&#10003; Waiver wire alerts</li>
-                    <li>&#10003; AI General Manager</li>
                 </ul>
-                <a href="#" class="btn btn-primary btn-block">Start Pro Trial</a>
+                {% if stripe_price_pro %}
+                <a href="{% url 'accounts:billing_checkout' stripe_price_pro %}" class="btn btn-primary btn-block">Start Pro Trial</a>
+                {% else %}
+                <a href="{% url 'accounts:signup' %}" class="btn btn-primary btn-block">Start Pro Trial</a>
+                {% endif %}
             </div>
             <div class="pricing-card">
                 <h3>Elite</h3>
                 <div class="pricing-amount">$9.99<span>/month</span></div>
                 <ul class="pricing-features">
                     <li>&#10003; Unlimited league syncs</li>
-                    <li>&#10003; Batter Matchups</li>
+                    <li>&#10003; Player Trend Analysis</li>
+                    <li>&#10003; Waiver Wire Recommendations</li>
+                    <li>&#10003; Available SP Tracker</li>
                     <li>&#10003; Daily Starters</li>
-                    <li>&#10003; Waiver wire alerts</li>
-                    <li>&#10003; AI General Manager</li>
                     <li>&#10003; League and Team Analytics</li>
                 </ul>
-                <a href="#" class="btn btn-outline btn-block">Go Elite</a>
+                {% if stripe_price_elite %}
+                <a href="{% url 'accounts:billing_checkout' stripe_price_elite %}" class="btn btn-outline btn-block">Go Elite</a>
+                {% else %}
+                <a href="{% url 'accounts:signup' %}" class="btn btn-outline btn-block">Go Elite</a>
+                {% endif %}
             </div>
         </div>
     </div>

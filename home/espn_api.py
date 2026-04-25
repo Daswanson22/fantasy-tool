@@ -89,11 +89,18 @@ def _parse_probable_starters(data):
                     athlete = probable.get('athlete', {})
                     name = athlete.get('displayName', '').strip()
                     if name:
+                        throws = (
+                            athlete.get('throws')
+                            or athlete.get('pitchHand', {}).get('code', '')
+                            or probable.get('pitchHand', {}).get('code', '')
+                            or ''
+                        )
                         starters.append({
-                            'name': name,
-                            'team': team_abbr,
-                            'espn_id': str(athlete.get('id', '')),
-                            'opponent': opponent,
-                            'home_away': home_away,  # 'home' or 'away'
+                            'name':      name,
+                            'team':      team_abbr,
+                            'espn_id':   str(athlete.get('id', '')),
+                            'opponent':  opponent,
+                            'home_away': home_away,
+                            'throws':    throws.upper()[:1],
                         })
     return starters

@@ -1,0 +1,36 @@
+{% extends "emails/base.html" %}
+
+{% block body %}
+  <p style="margin:0 0 8px;font-size:16px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;">Account Settings</p>
+  <h1 style="margin:0 0 24px;font-size:28px;font-weight:700;color:#0f172a;line-height:1.2;">Confirm your new email</h1>
+
+  <p style="margin:0 0 16px;font-size:16px;color:#475569;line-height:1.6;">
+    Hi <strong>{{ username }}</strong>,
+  </p>
+  <p style="margin:0 0 32px;font-size:16px;color:#475569;line-height:1.6;">
+    You requested to change your email address. Click the button below to confirm the change. This link expires in <strong>{{ ttl_hours }} hours</strong>.
+  </p>
+
+  <!-- CTA Button -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+    <tr>
+      <td align="center">
+        <a href="{{ verify_url }}"
+           style="display:inline-block;background-color:#3b82f6;color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:14px 36px;border-radius:8px;letter-spacing:0.01em;">
+          Confirm Email Change
+        </a>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0 0 12px;font-size:13px;color:#94a3b8;line-height:1.6;">
+    Or copy and paste this URL into your browser:
+  </p>
+  <p style="margin:0 0 24px;font-size:12px;color:#64748b;word-break:break-all;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;">
+    {{ verify_url }}
+  </p>
+
+  <p style="margin:0;font-size:14px;color:#94a3b8;line-height:1.6;">
+    If you didn't request this change, you can safely ignore this email. Your current email address will remain unchanged.
+  </p>
+{% endblock %}

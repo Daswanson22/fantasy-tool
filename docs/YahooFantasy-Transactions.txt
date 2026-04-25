@@ -1,0 +1,154 @@
+Transactions collection¶
+Description¶
+With the Transactions API, you can obtain information via GET from a collection of transactions simultaneously. The transactions collection is qualified in the URI by a particular league. Each element beneath the Transactions Collection will be a Transaction Resource
+
+You can also POST to the API to perform operations like adding and/or dropping players to/from a team and proposing trades.
+
+HTTP Operations Supported¶
+GET
+`POST <#transactions-collection-POST>`__
+URIs¶
+Any sub-resource valid for a transaction is a valid sub-resource under the transactions collection.
+
+Any sub-resource for a collection of transactions is extracted using a URI like:
+
+/transactions/{sub_resource}
+
+OR
+
+/transactions;transaction_keys={transaction_key1},{transaction_key2}/{sub_resource}
+
+Multiple sub-resources can be extracted from transactions in the same URI using a format like:
+
+/transactions;out={sub_resource_1},{sub_resource_2}
+
+OR
+
+/transactions;transaction_keys={transaction_key1},{transaction_key2};out={sub_resource_1},{sub_resource_2}
+
+Filters¶
+The transactions collection can have filters such as the following to obtain a subset of a transactions collection that satisfy the filtering condition. These filters can be combined to obtain a more restricted list of transactions.
+
+Filter parameter	Filter parameter values	Usage
+type	add,drop,commish,trade	/transactions;type=add
+types	Any valid types	/transactions;types=add,trade
+team_key	A team_key within the league	/transactions;team_key=257.l.193.t.1
+type with team_key	waiver,pending_trade	You can only use these options when also providing the team_key, ie /transactions;team_key=257.l.193.t.1;type=waiver
+count	Any integer greater than 0	/transactions;count=5
+POST¶
+Using POST, players can be added and/or dropped from a team, or trades can be proposed. The URI for POSTing to transactions collection is:
+
+https://fantasysports.yahooapis.com/fantasy/v2/league//transactions
+
+Adding/Dropping Players¶
+The input XML format for a POST request to the transactions API for adding a player is:
+
+<fantasy_content>
+  <transaction>
+    <type>add</type>
+    <player>
+      <player_key>{player_key}</player_key>
+      <transaction_data>
+        <type>add</type>
+        <destination_team_key>{team_key}</destination_team_key>
+      </transaction_data>
+    </player>
+  </transaction>
+</fantasy_content>
+The input XML format for a POST request to the transactions API for dropping a player is:
+
+<fantasy_content>
+  <transaction>
+    <type>drop</type>
+    <player>
+      <player_key>{player_key}</player_key>
+      <transaction_data>
+        <type>drop</type>
+        <source_team_key>{team_key}</source_team_key>
+      </transaction_data>
+    </player>
+  </transaction>
+</fantasy_content>
+The input XML format for a POST request to the transactions API for replacing one player with another player in a team is:
+
+<fantasy_content>
+  <transaction>
+    <type>add/drop</type>
+    <players>
+      <player>
+        <player_key>{player_key}</player_key>
+        <transaction_data>
+          <type>add</type>
+          <destination_team_key>{team_key}</destination_team_key>
+        </transaction_data>
+      </player>
+      <player>
+        <player_key>{player_key}</player_key>
+        <transaction_data>
+          <type>drop</type>
+          <source_team_key>{team_key}</source_team_key>
+        </transaction_data>
+      </player>
+    </players>
+  </transaction>
+</fantasy_content>
+You may also add players that are currently on waivers – the players will not be immediately added to your team, but rather, you will be returned back a waiver claim that will be processed at some point in the future. Various league rules will control in which conditions you will actually receive the player, in the case that multiple teams have placed waiver claims.
+
+If you are placing a waiver claim in a league that uses FAAB, you may add that to the XML that you POST:
+
+<?xml version='1.0'?>
+<fantasy_content>
+  <transaction>
+    <type>add/drop</type>
+    <faab_bid>25</faab_bid>
+    <players>
+      <player>
+        <player_key>238.p.5484</player_key>
+        <transaction_data>
+          <type>add</type>
+          <destination_team_key>238.l.627060.t.6</destination_team_key>
+        </transaction_data>
+      </player>
+      <player>
+        <player_key>238.p.6327</player_key>
+        <transaction_data>
+          <type>drop</type>
+          <destination_team_key>238.l.627060.t.6</destination_team_key>
+        </transaction_data>
+      </player>
+    </players>
+  </transaction>
+</fantasy_content>
+Once you have a waiver claim transaction, you may also edit the waiver priority or FAAB bid, or cancel the waiver entirely.
+
+Proposing Trades¶
+The input XML format for a POST request to the transactions API for proposing a trade is:
+
+<?xml version='1.0'?>
+<fantasy_content>
+  <transaction>
+    <type>pending_trade</type>
+    <trader_team_key>248.l.55438.t.11</trader_team_key>
+    <tradee_team_key>248.l.55438.t.4</tradee_team_key>
+    <trade_note>Yo yo yo yo yo!!!</trade_note>
+    <players>
+      <player>
+        <player_key>248.p.4130</player_key>
+        <transaction_data>
+          <type>pending_trade</type>
+          <source_team_key>248.l.55438.t.11</source_team_key>
+          <destination_team_key>248.l.55438.t.4</destination_team_key>
+        </transaction_data>
+      </player>
+      <player>
+        <player_key>248.p.2415</player_key>
+        <transaction_data>
+          <type>pending_trade</type>
+          <source_team_key>248.l.55438.t.4</source_team_key>
+          <destination_team_key>248.l.55438.t.11</destination_team_key>
+        </transaction_data>
+      </player>
+    </players>
+  </transaction>
+</fantasy_content>
+Once you have a pending trade transaction, you may accept, reject, allow/disallow, or vote against the trade (depending on which role you have in the league). You may also cancel the trade.

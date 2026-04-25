@@ -1,0 +1,25 @@
+{% extends "emails/base.html" %}
+
+{% block body %}
+  <p style="margin:0 0 8px;font-size:16px;color:#64748b;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;">Login Verification</p>
+  <h1 style="margin:0 0 24px;font-size:28px;font-weight:700;color:#0f172a;line-height:1.2;">Your login code</h1>
+
+  <p style="margin:0 0 28px;font-size:16px;color:#475569;line-height:1.6;">
+    Use the code below to complete your sign-in. It expires in <strong>{{ ttl_minutes }} minutes</strong>.
+  </p>
+
+  <!-- OTP Code Block -->
+  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+    <tr>
+      <td align="center">
+        <div style="display:inline-block;background-color:#f1f5f9;border:2px solid #e2e8f0;border-radius:12px;padding:20px 48px;">
+          <span style="font-size:40px;font-weight:800;color:#0f172a;letter-spacing:10px;font-variant-numeric:tabular-nums;">{{ code }}</span>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <p style="margin:0;font-size:14px;color:#94a3b8;line-height:1.6;">
+    If you didn't request this code, you can safely ignore this email. Someone may have entered your email address by mistake.
+  </p>
+{% endblock %}

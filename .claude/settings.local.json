@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py migrate accounts 0011 --fake)",
+      "Bash(python manage.py migrate accounts 0012_playertrendingsnapshot)"
+    ]
+  }
+}

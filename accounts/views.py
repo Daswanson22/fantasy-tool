@@ -8,10 +8,10 @@ from django.contrib import messages
 from django.contrib.auth import login, get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail
 from django.core.cache import cache
 from django.conf import settings as django_settings
 from django.urls import reverse
+from .emails import send_otp_email, send_email_change_verification
 from .forms import SignUpForm, LoginEmailForm, LoginCodeForm, UsernameForm, EmailChangeForm
 from .models import PendingEmailChange
 
@@ -111,13 +111,7 @@ def login_view(request):
             request.session['login_email'] = email
             cache.delete(_rate_key('otp:verify', request, email))
 
-            send_mail(
-                subject='Your Fantasy Tool login code',
-                message=f'Your login code is: {code}\n\nThis code expires in 10 minutes.',
-                from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@fantasytool.com'),
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            send_otp_email(email, code)
             _bump_rate_limit(send_key, _OTP_SEND_WINDOW)
             return render(request, 'accounts/login.html', {
                 'step': 'verify',
@@ -200,18 +194,9 @@ def manage_account(request):
                 verify_url = request.build_absolute_uri(
                     reverse('accounts:verify_email_change', args=[pending.token])
                 )
-                send_mail(
-                    subject='Verify your new email address',
-                    message=(
-                        f'Hi {request.user.username},\n\n'
-                        f'Click the link below to confirm your new email address:\n\n'
-                        f'{verify_url}\n\n'
-                        f'This link expires in {PendingEmailChange.TOKEN_TTL_HOURS} hours.\n\n'
-                        f'If you did not request this change, you can ignore this email.'
-                    ),
-                    from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@fantasytool.com'),
-                    recipient_list=[new_email],
-                    fail_silently=False,
+                send_email_change_verification(
+                    request.user, new_email, verify_url,
+                    ttl_hours=PendingEmailChange.TOKEN_TTL_HOURS,
                 )
                 messages.success(request, f'Verification email sent to {new_email}. Click the link to confirm your new address.')
                 return redirect('accounts:manage_account')

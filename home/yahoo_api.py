@@ -1,6 +1,7 @@
 import time
 import base64
 import logging
+import xml.etree.ElementTree as ET
 import requests
 from django.conf import settings
 
@@ -14,12 +15,30 @@ class TokenExpiredError(Exception):
     pass
 
 
+class YahooAPIError(Exception):
+    """Raised when Yahoo returns an application-level error (4xx/5xx with XML body)."""
+    def __init__(self, message, description=None):
+        super().__init__(message)
+        self.description = description  # human-readable detail from Yahoo's XML
+
+    def __str__(self):
+        if self.description:
+            return f'{super().__str__()} — {self.description}'
+        return super().__str__()
+
+
 class YahooFantasyAPI:
     def __init__(self, access_token):
         self.access_token = access_token
 
     def _headers(self):
         return {'Authorization': f'Bearer {self.access_token}'}
+
+    def _xml_headers(self):
+        return {
+            'Authorization': f'Bearer {self.access_token}',
+            'Content-Type': 'application/xml',
+        }
 
     def get(self, path, params=None):
         params = dict(params or {})
@@ -34,6 +53,46 @@ class YahooFantasyAPI:
             raise TokenExpiredError('Access token expired.')
         resp.raise_for_status()
         return resp.json()
+
+    def post(self, path, xml_body):
+        """POST XML to the Yahoo Fantasy API. Returns raw response text."""
+        resp = requests.post(
+            f'{YAHOO_FANTASY_BASE}{path}',
+            headers=self._xml_headers(),
+            data=xml_body.encode('utf-8'),
+            timeout=15,
+        )
+        return self._handle_write_response(resp)
+
+    def put(self, path, xml_body):
+        """PUT XML to the Yahoo Fantasy API. Returns raw response text."""
+        resp = requests.put(
+            f'{YAHOO_FANTASY_BASE}{path}',
+            headers=self._xml_headers(),
+            data=xml_body.encode('utf-8'),
+            timeout=15,
+        )
+        return self._handle_write_response(resp)
+
+    def _handle_write_response(self, resp):
+        """Validate a write response; raise TokenExpiredError or YahooAPIError on failure."""
+        if resp.status_code in (401, 403):
+            description = _parse_yahoo_error_xml(resp.text)
+            logger.error(
+                'Yahoo write API %s — body: %s', resp.status_code, resp.text[:500]
+            )
+            msg = description or f'Yahoo returned {resp.status_code} — token expired or app lacks write permission.'
+            raise TokenExpiredError(msg)
+        if not resp.ok:
+            description = _parse_yahoo_error_xml(resp.text)
+            logger.error(
+                'Yahoo write API %s — body: %s', resp.status_code, resp.text[:500]
+            )
+            raise YahooAPIError(
+                f'Yahoo API error {resp.status_code}',
+                description=description or resp.text[:300],
+            )
+        return resp.text
 
     # ------------------------------------------------------------------
     # Public helpers
@@ -172,6 +231,24 @@ class YahooFantasyAPI:
 
         return result
 
+    def get_league_standings(self, league_key):
+        """Return all teams' season standings for the league.
+
+        Each entry: {team_key, team_name, rank, points_for, wins, losses, ties}
+        """
+        data = self.get(f'/league/{league_key}/standings')
+        return _parse_league_standings(data)
+
+    def get_league_scoreboard(self, league_key, week=None):
+        """Return current week points for each team in the league.
+
+        Returns {team_key: week_points (float)}.
+        Optionally pass week (int) to fetch a specific week's scoreboard.
+        """
+        week_filter = f';week={week}' if week else ''
+        data = self.get(f'/league/{league_key}/scoreboard{week_filter}')
+        return _parse_league_scoreboard(data)
+
     def get_league_player_stats(self, league_key, player_keys, stat_type):
         """Return {player_key: total_points} for a specific set of player_keys.
 
@@ -182,6 +259,119 @@ class YahooFantasyAPI:
         path = f'/league/{league_key}/players;player_keys={keys_str}/stats;type={stat_type}'
         data = self.get(path)
         return _parse_league_player_stats(data)
+
+    def get_player_ownership(self, league_key, player_keys, debug=False):
+        """Return ownership data for the given player keys within a league.
+
+        Yahoo endpoint: /league/{key}/players;player_keys=.../ownership
+
+        Returns: {player_key: {'percent_owned': float|None, 'percent_owned_change': float|None}}
+        Yahoo's percent_owned_change is the 7-day delta (positive = trending up).
+        Batches automatically for Yahoo's ~25-key-per-request limit.
+        Pass debug=True to log the raw Yahoo response for schema inspection.
+        """
+        if not player_keys:
+            return {}
+
+        result = {}
+        batch_size = 25
+        for i in range(0, len(player_keys), batch_size):
+            batch = player_keys[i:i + batch_size]
+            keys_str = ','.join(batch)
+            path = f'/league/{league_key}/players;player_keys={keys_str}/ownership'
+            try:
+                data = self.get(path)
+                if debug:
+                    logger.warning('get_player_ownership RAW batch %d: %s', i // batch_size, data)
+                result.update(_parse_player_ownership(data))
+            except Exception as e:
+                logger.warning('get_player_ownership batch %d error: %s', i // batch_size, e)
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Write operations (POST / PUT)
+    # ------------------------------------------------------------------
+
+    def add_drop_player(self, league_key, team_key, add_player_key, drop_player_key,
+                        faab_bid=None):
+        """Execute a combined add/drop transaction atomically.
+
+        Drops drop_player_key and adds add_player_key in a single API call.
+        For FAAB waiver leagues pass faab_bid (int) to include a bid amount.
+
+        Raises:
+            TokenExpiredError: OAuth token needs refresh.
+            YahooAPIError: Yahoo rejected the transaction (e.g. player on IL,
+                           waiver wire, roster full, budget exceeded).
+        """
+        faab_element = f'    <faab_bid>{int(faab_bid)}</faab_bid>\n' if faab_bid is not None else ''
+        xml_body = (
+            "<?xml version='1.0'?>\n"
+            "<fantasy_content>\n"
+            "  <transaction>\n"
+            "    <type>add/drop</type>\n"
+            f"{faab_element}"
+            "    <players>\n"
+            "      <player>\n"
+            f"        <player_key>{add_player_key}</player_key>\n"
+            "        <transaction_data>\n"
+            "          <type>add</type>\n"
+            f"          <destination_team_key>{team_key}</destination_team_key>\n"
+            "        </transaction_data>\n"
+            "      </player>\n"
+            "      <player>\n"
+            f"        <player_key>{drop_player_key}</player_key>\n"
+            "        <transaction_data>\n"
+            "          <type>drop</type>\n"
+            f"          <source_team_key>{team_key}</source_team_key>\n"
+            "        </transaction_data>\n"
+            "      </player>\n"
+            "    </players>\n"
+            "  </transaction>\n"
+            "</fantasy_content>"
+        )
+        logger.info(
+            'add_drop_player league=%s team=%s add=%s drop=%s faab=%s',
+            league_key, team_key, add_player_key, drop_player_key, faab_bid,
+        )
+        return self.post(f'/league/{league_key}/transactions', xml_body)
+
+    def set_roster_position(self, team_key, player_key, position, date=None):
+        """Move a player to a new roster slot (e.g. BN → SP, SP → BN).
+
+        Args:
+            team_key:   Team key string.
+            player_key: Player key string.
+            position:   Target position ('SP', 'RP', 'P', 'BN', 'OF', etc.)
+            date:       'YYYY-MM-DD' to act on a specific date; defaults to today.
+
+        Raises:
+            TokenExpiredError: OAuth token needs refresh.
+            YahooAPIError: Yahoo rejected the roster change.
+        """
+        from datetime import date as date_cls
+        date_str = date or date_cls.today().isoformat()
+        xml_body = (
+            "<?xml version='1.0'?>\n"
+            "<fantasy_content>\n"
+            "  <roster>\n"
+            "    <coverage_type>date</coverage_type>\n"
+            f"    <date>{date_str}</date>\n"
+            "    <players>\n"
+            "      <player>\n"
+            f"        <player_key>{player_key}</player_key>\n"
+            f"        <position>{position}</position>\n"
+            "      </player>\n"
+            "    </players>\n"
+            "  </roster>\n"
+            "</fantasy_content>"
+        )
+        logger.info(
+            'set_roster_position team=%s player=%s position=%s date=%s',
+            team_key, player_key, position, date_str,
+        )
+        return self.put(f'/team/{team_key}/roster', xml_body)
 
 
 # ------------------------------------------------------------------
@@ -433,6 +623,8 @@ def _parse_roster(data):
                 'player_key': player_info.get('player_key', ''),
                 'uniform_number': player_info.get('uniform_number', ''),
                 'position_type': position_type,
+                'bats':         player_info.get('bats', ''),
+                'throws':       player_info.get('throws', ''),
                 'trending': None,  # placeholder — populated in a future feature
             })
         except (KeyError, IndexError, TypeError) as e:
@@ -749,6 +941,209 @@ def _parse_player_starting_statuses(data):
     return result
 
 
+def _parse_player_ownership(data):
+    """
+    Parse /league/{key}/players;player_keys=.../ownership response.
+    Returns {player_key: {'percent_owned': float|None, 'percent_owned_change': float|None}}.
+
+    Yahoo's ownership sub-resource shape (per player):
+      player[1]['ownership']['percent_owned']        → float string e.g. "73.45"
+      player[1]['ownership']['percent_owned_change'] → float string e.g. "+4.12" or "-1.5"
+    """
+    result = {}
+    try:
+        league_arr = data['fantasy_content']['league']
+        players_container = _arr_get(league_arr, 1)
+        if not isinstance(players_container, dict):
+            return result
+        players_obj = players_container.get('players', {})
+        if not players_obj:
+            return result
+    except (KeyError, TypeError):
+        return result
+
+    def _float(val):
+        try:
+            return float(val) if val not in (None, '', '-') else None
+        except (ValueError, TypeError):
+            return None
+
+    for player_wrapper in _get_list_value(players_obj):
+        try:
+            player_arr = player_wrapper['player']
+            info_raw = _arr_get(player_arr, 0)
+            player_info = (
+                _flatten_array(info_raw) if isinstance(info_raw, list)
+                else (info_raw if isinstance(info_raw, dict) else {})
+            )
+            player_key = player_info.get('player_key', '')
+            if not player_key:
+                continue
+
+            arr_len = (len(player_arr) if isinstance(player_arr, list)
+                       else int(player_arr.get('count', 0)) + 1)
+            for idx in range(1, max(arr_len, 5)):
+                elem = _arr_get(player_arr, idx)
+                if not isinstance(elem, dict):
+                    continue
+                ownership = elem.get('ownership')
+                if ownership is None:
+                    continue
+                if isinstance(ownership, list):
+                    ownership = _flatten_array(ownership)
+                result[player_key] = {
+                    'percent_owned':        _float(ownership.get('percent_owned')),
+                    'percent_owned_change': _float(ownership.get('percent_owned_change')),
+                }
+                break
+        except (KeyError, IndexError, TypeError) as e:
+            logger.debug('_parse_player_ownership: error parsing player – %s', e)
+            continue
+
+    return result
+
+
+def _parse_league_standings(data):
+    """
+    Parse /league/{key}/standings response.
+
+    Returns a list of team dicts:
+      { team_key, team_name, rank, points_for, wins, losses, ties }
+
+    points_for is the season total fantasy points (present in all scoring types).
+    wins/losses/ties are only meaningful in H2H leagues; they'll be 0 for roto.
+    """
+    teams = []
+    try:
+        league_arr = data['fantasy_content']['league']
+
+        standings_block = None
+        for item in (league_arr if isinstance(league_arr, list) else _get_list_value(league_arr)):
+            if isinstance(item, dict) and 'standings' in item:
+                standings_block = item['standings']
+                break
+        if standings_block is None:
+            return teams
+
+        # standings is a list with one element: {"teams": {count-keyed}}
+        if isinstance(standings_block, list):
+            standings_block = standings_block[0] if standings_block else {}
+
+        teams_obj = standings_block.get('teams', {})
+    except (KeyError, TypeError):
+        return teams
+
+    for team_wrapper in _get_list_value(teams_obj):
+        try:
+            team_arr = team_wrapper['team']
+            info_raw = _arr_get(team_arr, 0)
+            team_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+
+            name_data = team_info.get('name', '')
+            team_name = name_data if isinstance(name_data, str) else str(name_data)
+            team_key = team_info.get('team_key', '')
+
+            extra = _arr_get(team_arr, 1)
+            ts = extra.get('team_standings', {}) if isinstance(extra, dict) else {}
+            if isinstance(ts, list):
+                ts = _flatten_array(ts)
+
+            def _flt(val, default=0.0):
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    return default
+
+            def _int(val, default=0):
+                try:
+                    return int(val)
+                except (TypeError, ValueError):
+                    return default
+
+            rank = _int(ts.get('rank', 0))
+            points_for = _flt(ts.get('points_for', 0))
+
+            outcome = ts.get('outcome_totals', {})
+            if isinstance(outcome, list):
+                outcome = _flatten_array(outcome)
+            wins   = _int(outcome.get('wins',   0)) if isinstance(outcome, dict) else 0
+            losses = _int(outcome.get('losses', 0)) if isinstance(outcome, dict) else 0
+            ties   = _int(outcome.get('ties',   0)) if isinstance(outcome, dict) else 0
+
+            teams.append({
+                'team_key':   team_key,
+                'team_name':  team_name,
+                'rank':       rank,
+                'points_for': points_for,
+                'wins':       wins,
+                'losses':     losses,
+                'ties':       ties,
+            })
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    return teams
+
+
+def _parse_league_scoreboard(data):
+    """
+    Parse /league/{key}/scoreboard response.
+
+    Returns {team_key: week_points (float)} for all teams currently in a matchup.
+    """
+    result = {}
+    try:
+        league_arr = data['fantasy_content']['league']
+
+        scoreboard_block = None
+        for item in (league_arr if isinstance(league_arr, list) else _get_list_value(league_arr)):
+            if isinstance(item, dict) and 'scoreboard' in item:
+                scoreboard_block = item['scoreboard']
+                break
+        if scoreboard_block is None:
+            return result
+
+        # scoreboard: {"0": {"matchups": {count-keyed}}, "count": N}
+        inner = scoreboard_block.get('0', {}) if isinstance(scoreboard_block, dict) else {}
+        matchups_obj = inner.get('matchups', {}) if isinstance(inner, dict) else {}
+    except (KeyError, TypeError):
+        return result
+
+    for matchup_wrapper in _get_list_value(matchups_obj):
+        try:
+            matchup_arr = matchup_wrapper.get('matchup', [])
+            teams_block = None
+            for elem in (matchup_arr if isinstance(matchup_arr, list) else _get_list_value(matchup_arr)):
+                if isinstance(elem, dict) and 'teams' in elem:
+                    teams_block = elem['teams']
+                    break
+            if teams_block is None:
+                continue
+
+            for team_wrapper in _get_list_value(teams_block):
+                team_arr = team_wrapper.get('team', [])
+                info_raw = _arr_get(team_arr, 0)
+                team_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+                team_key = team_info.get('team_key', '')
+
+                extra = _arr_get(team_arr, 1)
+                tp = extra.get('team_points', {}) if isinstance(extra, dict) else {}
+                if isinstance(tp, list):
+                    tp = _flatten_array(tp)
+                total = tp.get('total') if isinstance(tp, dict) else None
+                try:
+                    week_pts = float(total) if total is not None else 0.0
+                except (TypeError, ValueError):
+                    week_pts = 0.0
+
+                if team_key:
+                    result[team_key] = week_pts
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    return result
+
+
 def _parse_league(data):
     try:
         league_arr = data['fantasy_content']['league']
@@ -833,3 +1228,30 @@ def _flatten_array(arr):
         if isinstance(item, dict):
             result.update(item)
     return result
+
+
+def _parse_yahoo_error_xml(text):
+    """Extract a human-readable description from Yahoo's XML error response.
+
+    Yahoo error bodies look like:
+        <yahoo:error xmlns:yahoo="http://www.yahooapis.com/v1/base.rng">
+          <yahoo:description>...</yahoo:description>
+        </yahoo:error>
+
+    Returns the description string, or None if the body can't be parsed.
+    """
+    if not text:
+        return None
+    try:
+        root = ET.fromstring(text)
+        ns = {'yahoo': 'http://www.yahooapis.com/v1/base.rng'}
+        desc = root.find('yahoo:description', ns)
+        if desc is not None and desc.text:
+            return desc.text.strip()
+        # Fallback: search without namespace prefix
+        desc = root.find('.//{http://www.yahooapis.com/v1/base.rng}description')
+        if desc is not None and desc.text:
+            return desc.text.strip()
+    except ET.ParseError:
+        pass
+    return None

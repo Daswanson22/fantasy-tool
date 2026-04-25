@@ -75,6 +75,7 @@
                         <span class="league-card-name">{{ team.team_name }}</span>
                         <div class="league-card-meta">
                             <span class="league-badge">MLB</span>
+                            {% if team.league_name %}<span class="league-card-league-name">{{ team.league_name }}</span>{% endif %}
                             <span class="selected-label">&#10003; Selected</span>
                         </div>
                     </div>
@@ -88,7 +89,7 @@
                         <span class="league-card-name">{{ team.team_name }}</span>
                         <div class="league-card-meta">
                             <span class="league-badge">MLB</span>
-                            <span>{{ team.game_name }}</span>
+                            {% if team.league_name %}<span class="league-card-league-name">{{ team.league_name }}</span>{% endif %}
                         </div>
                     </div>
                     <form method="post" action="{% url 'home:select_league' %}" style="margin:0;">
@@ -107,6 +108,7 @@
                         <span class="league-card-name">{{ team.team_name }}</span>
                         <div class="league-card-meta">
                             <span class="league-badge">MLB</span>
+                            {% if team.league_name %}<span class="league-card-league-name">{{ team.league_name }}</span>{% endif %}
                             <span class="locked-label">
                                 &#128274;
                                 {% if tier == 'free' %}Upgrade to Pro for more leagues{% else %}Upgrade to Elite for unlimited{% endif %}
@@ -133,41 +135,7 @@
                 <p>Update your profile, subscription, and connected accounts.</p>
                 <a href="{% url 'accounts:manage_account' %}" class="btn btn-primary">Manage Account</a>
             </div>
-
-            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
-                <div class="dashboard-card-icon">&#128203;</div>
-                <h3>Lineup Optimizer</h3>
-                <p>Get the optimal lineup for this week's matchup.</p>
-                {% if yahoo_connected %}
-                    <a href="#" class="btn btn-primary">Optimize</a>
-                {% else %}
-                    <span class="locked-label">Connect Yahoo to unlock</span>
-                {% endif %}
-            </div>
-
-            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
-                <div class="dashboard-card-icon">&#9878;</div>
-                <h3>Trade Analyzer</h3>
-                <p>Evaluate incoming trades based on your roster needs.</p>
-                {% if yahoo_connected %}
-                    <a href="#" class="btn btn-primary">Analyze Trade</a>
-                {% else %}
-                    <span class="locked-label">Connect Yahoo to unlock</span>
-                {% endif %}
-            </div>
-
-            <div class="dashboard-card {% if not yahoo_connected %}dashboard-card-locked{% endif %}">
-                <div class="dashboard-card-icon">&#128640;</div>
-                <h3>Waiver Wire</h3>
-                <p>Top available players ranked for your specific league.</p>
-                {% if yahoo_connected %}
-                    <a href="#" class="btn btn-primary">View Waivers</a>
-                {% else %}
-                    <span class="locked-label">Connect Yahoo to unlock</span>
-                {% endif %}
-            </div>
         </div>
-
     </div>
 </section>
 {% endblock %}

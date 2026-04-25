@@ -23,6 +23,20 @@ if not DEBUG and _USING_DEFAULT_SECRET:
 if not DEBUG and ('*' in ALLOWED_HOSTS or not ALLOWED_HOSTS):
     raise ImproperlyConfigured('DJANGO_ALLOWED_HOSTS must be explicit when DEBUG is False.')
 
+
+def _env_int(name, default, *, min_value=1, max_value=100000):
+    raw = os.environ.get(name, '').strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(min_value, min(max_value, value))
+
+TRUST_PROXY_SSL_HEADER = os.environ.get('DJANGO_TRUST_PROXY_SSL_HEADER', 'False').lower() in ('true', '1', 'yes')
+USE_FORWARDED_HOST = os.environ.get('DJANGO_USE_X_FORWARDED_HOST', 'False').lower() in ('true', '1', 'yes')
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,6 +58,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.middleware.http.ConditionalGetMiddleware',
 ]
 
 ROOT_URLCONF = 'fantasy_tool.urls'
@@ -129,10 +144,44 @@ X_FRAME_OPTIONS = 'DENY'
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    if TRUST_PROXY_SSL_HEADER:
+        SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = USE_FORWARDED_HOST
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
+
+# Home endpoint rate limits (requests, per window seconds).
+HOME_RATE_LIMITS = {
+    'select_league': (
+        _env_int('HOME_RL_SELECT_LEAGUE_LIMIT', 20),
+        _env_int('HOME_RL_SELECT_LEAGUE_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'available_sp_api': (
+        _env_int('HOME_RL_AVAILABLE_SP_LIMIT', 30),
+        _env_int('HOME_RL_AVAILABLE_SP_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'waiver_players_api': (
+        _env_int('HOME_RL_WAIVER_PLAYERS_LIMIT', 90),
+        _env_int('HOME_RL_WAIVER_PLAYERS_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'toggle_keeper': (
+        _env_int('HOME_RL_TOGGLE_KEEPER_LIMIT', 120),
+        _env_int('HOME_RL_TOGGLE_KEEPER_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'save_ai_config': (
+        _env_int('HOME_RL_SAVE_AI_CONFIG_LIMIT', 60),
+        _env_int('HOME_RL_SAVE_AI_CONFIG_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'toggle_ai_manager': (
+        _env_int('HOME_RL_TOGGLE_AI_MANAGER_LIMIT', 30),
+        _env_int('HOME_RL_TOGGLE_AI_MANAGER_WINDOW', 60, min_value=5, max_value=3600),
+    ),
+    'ai_recommendation': (
+        _env_int('HOME_RL_AI_REC_LIMIT', 5),
+        _env_int('HOME_RL_AI_REC_WINDOW', 600, min_value=60, max_value=3600),
+    ),
+}
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
@@ -155,12 +204,19 @@ STRIPE_WEBHOOK_SECRET  = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 STRIPE_PRICE_PRO   = os.environ.get('STRIPE_PRICE_PRO', '')
 STRIPE_PRICE_ELITE = os.environ.get('STRIPE_PRICE_ELITE', '')
 
-# Email — use console backend in development; override in production
+# Email — auto-switch to SMTP when credentials are present, console otherwise
+_email_host_user = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend',
+    'django.core.mail.backends.smtp.EmailBackend' if _email_host_user
+    else 'django.core.mail.backends.console.EmailBackend',
 )
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@fantasytool.com')
+EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True').lower() in ('true', '1', 'yes')
+EMAIL_HOST_USER     = _email_host_user
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'thefantasylab@swantech.org')
 
 LOGGING = {
     'version': 1,

@@ -54,6 +54,10 @@ class UserProfile(models.Model):
     def can_access_ai_gm(self):
         return self.tier in self.PAID_TIERS
 
+    @property
+    def can_access_league_analytics(self):
+        return self.tier == self.TIER_ELITE
+
     def __str__(self):
         return f'{self.user.username} ({self.tier})'
 
@@ -135,13 +139,14 @@ class LeagueSettings(models.Model):
         return f'{self.name} ({self.league_key})'
 
     SCORING_TYPE_LABELS = {
-        'head':    'Head to Head (Categories)',
-        'headone': 'Head to Head (One Win)',
-        'point':   'Head to Head (Points)',
-        'roto':    'Rotisserie',
-        'rotoone': 'Rotisserie (One Win)',
+        'head':      'Head to Head (Categories)',
+        'headone':   'Head to Head (One Win)',
+        'point':     'Head to Head (Points)',
+        'headpoint': 'H2H Points',
+        'roto':      'Rotisserie',
+        'rotoone':   'Rotisserie (One Win)',
     }
-    H2H_TYPES = {'head', 'headone', 'point'}
+    H2H_TYPES = {'head', 'headone', 'point', 'headpoint'}
 
     @property
     def scoring_type_display(self):
@@ -162,11 +167,30 @@ class AIManagerConfig(models.Model):
         User, on_delete=models.CASCADE, related_name='ai_manager_configs'
     )
     team_key = models.CharField(max_length=100)
+
+    # --- User-facing toggle ---
+    is_enabled = models.BooleanField(default=False)
+
+    # --- Move budgets (set by user in Configure modal) ---
     # Roto leagues: per-position move budgets
     max_hitter_moves  = models.PositiveSmallIntegerField(default=0)
     max_pitcher_moves = models.PositiveSmallIntegerField(default=0)
     # H2H leagues: single combined weekly move budget
     max_total_moves   = models.PositiveSmallIntegerField(default=0)
+
+    # --- Roster optimizer options ---
+    # When True, the engine automatically promotes bench pitchers who are
+    # confirmed starters today (and demotes non-starters to make room).
+    auto_promote_starters = models.BooleanField(default=False)
+
+    # --- Execution state (managed by AI Manager engine) ---
+    # Tracks adds made this week so the engine can enforce max_*_moves budgets.
+    # Reset automatically when last_known_week != league_settings.current_week.
+    adds_used_this_week = models.PositiveSmallIntegerField(default=0)
+    last_known_week     = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Idempotency guard: the engine skips a team if it already ran today.
+    last_ai_run_date    = models.DateField(null=True, blank=True)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -174,6 +198,35 @@ class AIManagerConfig(models.Model):
 
     def __str__(self):
         return f'{self.user.username} AI config for {self.team_key}'
+
+
+class AITransactionLog(models.Model):
+    """Audit trail for every add/drop the AI Manager executes (or would execute in dry-run)."""
+    ACTION_ADD  = 'add'
+    ACTION_DROP = 'drop'
+    ACTION_CHOICES = [
+        (ACTION_ADD,  'Add'),
+        (ACTION_DROP, 'Drop'),
+    ]
+
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_transactions')
+    team_key   = models.CharField(max_length=100)
+    action     = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    player_key = models.CharField(max_length=100)
+    player_name = models.CharField(max_length=200)
+    reason     = models.TextField(blank=True, default='')
+    dry_run    = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'team_key', 'created_at']),
+        ]
+
+    def __str__(self):
+        prefix = '[DRY] ' if self.dry_run else ''
+        return f'{prefix}{self.action.upper()} {self.player_name} ({self.team_key})'
 
 
 class KeptPlayer(models.Model):
@@ -190,6 +243,40 @@ class KeptPlayer(models.Model):
 
     def __str__(self):
         return f'{self.user.username} keeps {self.player_key} on {self.team_key}'
+
+
+class PlayerTrendingSnapshot(models.Model):
+    """
+    Daily snapshot of a rostered player's trending value.
+    One row per (user, team_key, player_key, date) — idempotent on re-runs.
+
+    trending_delta: (lastweek_pts / 6) - (lastmonth_pts / 24)
+        — fantasy points per game, last week minus last month average.
+        Positive = player is outperforming their monthly baseline (hot).
+        Negative = player is underperforming (cold).
+    lastweek_pts / lastmonth_pts stored raw so the formula can be re-derived.
+    """
+    user        = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trending_snapshots')
+    team_key    = models.CharField(max_length=100)
+    player_key  = models.CharField(max_length=100)
+    player_name = models.CharField(max_length=200)
+    date        = models.DateField()
+
+    lastweek_pts  = models.FloatField(null=True, blank=True)
+    lastmonth_pts = models.FloatField(null=True, blank=True)
+    trending_delta = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [('user', 'team_key', 'player_key', 'date')]
+        ordering = ['-date', 'player_name']
+        indexes = [
+            models.Index(fields=['user', 'team_key', 'date']),
+            models.Index(fields=['player_key', 'date']),
+        ]
+
+    def __str__(self):
+        delta_str = f'{self.trending_delta:+.1f}' if self.trending_delta is not None else 'N/A'
+        return f'{self.player_name} | {self.team_key} | {self.date} | Δ{delta_str}'
 
 
 @receiver(post_save, sender=User)

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python manage.py check)"
+      "Bash(python manage.py check)",
+      "Bash(xxd \"f:/daswa/Projects/fantasy-tool/requirements.txt\")"
     ]
   }
 }

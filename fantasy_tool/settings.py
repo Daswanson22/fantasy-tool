@@ -143,6 +143,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
+    'accounts.pipeline.initialize_auth_time',
     'social_core.pipeline.user.user_details',
     'accounts.pipeline.fix_username_from_email',
 )
@@ -154,6 +155,8 @@ LOGOUT_REDIRECT_URL = '/'
 
 # Security defaults. Local development keeps relaxed settings.
 SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'

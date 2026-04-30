@@ -5,6 +5,7 @@ import jwt
 import requests
 from django.conf import settings
 from social_core.backends.yahoo import YahooOAuth2
+from social_core.exceptions import AuthFailed
 
 logger = logging.getLogger(__name__)
 YAHOO_OIDC_CONFIGURATION_URL = 'https://api.login.yahoo.com/.well-known/openid-configuration'
@@ -98,7 +99,14 @@ class YahooFantasyOAuth2(YahooOAuth2):
         return {'sub': guid, 'xoauth_yahoo_guid': guid}
 
     def get_user_id(self, details, response):
-        return response.get('sub') or response.get('xoauth_yahoo_guid')
+        uid = response.get('sub') or response.get('xoauth_yahoo_guid')
+        if not uid:
+            raise AuthFailed(
+                self,
+                'Yahoo OAuth: could not determine user ID from id_token or token '
+                'response. This may indicate a transient Yahoo API issue.',
+            )
+        return uid
 
     def get_user_details(self, response):
         email = response.get('email', '')

@@ -1,3 +1,5 @@
+import time as _time
+
 from django.contrib.auth import get_user_model
 from social_core.pipeline.partial import partial
 
@@ -49,6 +51,21 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
 
     # Inject username; email comes from Yahoo details (set by get_user_details)
     details['username'] = username
+
+
+def initialize_auth_time(backend, user, social, *args, **kwargs):
+    """
+    Set auth_time on a freshly-issued OAuth token so that get_api_for_user()
+    does not immediately force a refresh on the very first API call.
+
+    load_extra_data stores expires_in from Yahoo's token response but has no
+    auth_time (Yahoo never returns one). Without this step, auth_time defaults
+    to 0, making token_age enormous and triggering a needless refresh on every
+    login before any actual expiry has occurred.
+    """
+    if social and 'auth_time' not in social.extra_data:
+        social.extra_data['auth_time'] = int(_time.time())
+        social.save(update_fields=['extra_data'])
 
 
 def fix_username_from_email(backend, user, response, details, *args, **kwargs):

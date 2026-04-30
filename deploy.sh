@@ -16,7 +16,7 @@ echo ""
 # ── 1. Virtualenv ──────────────────────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
     echo "[1/5] Creating virtual environment..."
-    python3.10 -m venv "$VENV_DIR"
+    source "$VENV_DIR"
 else
     echo "[1/5] Virtual environment already exists."
 fi

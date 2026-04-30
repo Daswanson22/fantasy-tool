@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Allow: /accounts/signup/
+Allow: /accounts/login/
+
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /teams/
+Disallow: /select-league/
+Disallow: /waiver-players/
+Disallow: /available-sp/
+Disallow: /toggle-keeper/
+Disallow: /save-ai-config/
+Disallow: /toggle-ai-manager/
+Disallow: /ai-recommendation/
+Disallow: /matchups/
+Disallow: /accounts/logout/
+Disallow: /accounts/complete-registration/
+Disallow: /accounts/manage/
+Disallow: /accounts/billing/
+Disallow: /accounts/verify-email/
+Disallow: /auth/
+
+Sitemap: https://www.thefantasylab.io/sitemap.xml

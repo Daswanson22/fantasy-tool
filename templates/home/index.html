@@ -3,6 +3,19 @@
 
 {% block title %}The Fantasy Lab — Win Your Yahoo Fantasy Baseball League{% endblock %}
 
+{% block meta_description %}Connect your Yahoo Fantasy Baseball league and get player trends, waiver wire picks, 7-day pitcher forecasts, and AI pickup recommendations. Free to start.{% endblock %}
+
+{% block meta_keywords %}Yahoo Fantasy Baseball tools, Yahoo Fantasy Sports tools, fantasy baseball waiver wire, starting pitcher tracker, fantasy baseball pickup analyzer, fantasy sports manager, win fantasy baseball, fantasy league tools{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="https://www.thefantasylab.io/">{% endblock %}
+
+{% block og_title %}The Fantasy Lab — Win Your Yahoo Fantasy Baseball League{% endblock %}
+{% block og_description %}Smart Yahoo Fantasy Baseball tools: player trend tracker, waiver wire finder, 7-day pitcher forecast, hitter matchup planner, and AI pickup recommendations. Free to start.{% endblock %}
+{% block og_url %}https://www.thefantasylab.io/{% endblock %}
+
+{% block twitter_title %}The Fantasy Lab — Win Your Yahoo Fantasy Baseball League{% endblock %}
+{% block twitter_description %}Smart Yahoo Fantasy Baseball tools: player trend tracker, waiver wire finder, 7-day pitcher forecast, and AI pickup recommendations. Free to start.{% endblock %}
+
 {% block extra_head %}
 <style>
   /* Trust bar */
@@ -76,13 +89,80 @@
 </style>
 {% endblock %}
 
+{% block structured_data %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "The Fantasy Lab",
+  "applicationCategory": "SportsApplication",
+  "operatingSystem": "Any",
+  "url": "https://www.thefantasylab.io/",
+  "screenshot": "https://www.thefantasylab.io/static/images/social-sharing-image.png",
+  "description": "Yahoo Fantasy Baseball tools including player trend tracker, waiver wire finder, 7-day starting pitcher tracker, hitter matchup planner, and AI pickup recommendations.",
+  "offers": [
+    {"@type":"Offer","price":"0","priceCurrency":"USD","name":"Free Plan"},
+    {"@type":"Offer","price":"4.99","priceCurrency":"USD","name":"Pro Plan"},
+    {"@type":"Offer","price":"14.99","priceCurrency":"USD","name":"Elite Plan"}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is it really free to start?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Yes — no credit card required. The Free plan gives you one league, live roster view, and player trend tracking. You can use it all season at no cost and upgrade whenever you want more tools."}
+    },
+    {
+      "@type": "Question",
+      "name": "Does this work with my Yahoo Fantasy Baseball league?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Yes. The Fantasy Lab is built specifically for Yahoo Fantasy Baseball. Connect your Yahoo account and your leagues and rosters are imported automatically. Both Head-to-Head and Rotisserie scoring formats are fully supported."}
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to install anything?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Nothing. The Fantasy Lab runs entirely in your browser. Sign up, connect your Yahoo account, and you're in — on any device."}
+    },
+    {
+      "@type": "Question",
+      "name": "How is this different from Yahoo's built-in tools?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Yahoo shows you raw numbers — we tell you what to do with them. The Fantasy Lab adds trending signals on every player, a 7-day pitcher forecast pulled from ESPN and cross-referenced with your league's available pool, a multi-filter waiver finder, hitter matchup tables, and a daily AI recommendation. None of that is built into Yahoo."}
+    },
+    {
+      "@type": "Question",
+      "name": "What does the Pickup Analyzer do?",
+      "acceptedAnswer": {"@type": "Answer", "text": "It looks at your current roster and tells you which free agent you should add based on what your team actually needs. It's available on paid plans and takes the guesswork out of waiver decisions."}
+    },
+    {
+      "@type": "Question",
+      "name": "Is my league data safe?",
+      "acceptedAnswer": {"@type": "Answer", "text": "Yes. We only read your Yahoo league data to power the tools — we never share it or sell it. Your account connects through Yahoo's official OAuth system, the same secure process Yahoo uses for all approved third-party apps."}
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.thefantasylab.io/"}
+  ]
+}
+</script>
+{% endblock %}
+
 {% block content %}
 <!-- Hero Section -->
 <section class="hero">
     <div class="container">
         <div class="hero-content">
             <span class="hero-badge">&#9918; Built for Yahoo Fantasy Baseball</span>
-            <h1>Stop Guessing.<br><span class="text-accent">Start Winning.</span></h1>
+            <h1>Stop Guessing.<br><span class="text-accent">Start Winning</span> Fantasy Baseball.</h1>
             <p class="hero-description">
                 The Fantasy Lab connects to your Yahoo league and shows you exactly who to pick up,
                 which pitchers are starting this week, and what moves will help your team — so you

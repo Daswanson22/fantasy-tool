@@ -1,7 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{% if team %}{{ team.team_name }}{% else %}My Team{% endif %} - Fantasy Tool{% endblock %}
+{% block title %}{% if team %}{{ team.team_name }}{% else %}My Team{% endif %} | The Fantasy Lab{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+{% block canonical %}{% endblock %}
 
 {% block content %}
 <section class="dashboard-section">
@@ -363,7 +365,7 @@
                 <!-- Report a Bug -->
                 <div class="bug-report-bar">
                     <span class="bug-report-text">Something look wrong?</span>
-                    <a href="mailto:support@thefantasylab.com" class="bug-report-link">Report a bug</a>
+                    <a href="mailto:thefantasylab@swantech.org" class="bug-report-link">Report a bug</a>
                 </div>
 
                 </div><!-- /view-roster -->

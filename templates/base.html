@@ -5,9 +5,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Fantasy Tool{% endblock %}</title>
+
+    <!-- Primary meta -->
+    <title>{% block title %}The Fantasy Lab — Yahoo Fantasy Sports Tools{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}The Fantasy Lab gives you Yahoo Fantasy Baseball tools to win your league — player trends, waiver wire finder, 7-day pitcher tracker, and AI pickup recommendations.{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}Yahoo Fantasy Sports tools, fantasy baseball tools, fantasy sports tools, fantasy sports manager, waiver wire finder, starting pitcher tracker, fantasy league tools{% endblock %}">
+    <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+
+    <!-- Canonical -->
+    {% block canonical %}<link rel="canonical" href="https://www.thefantasylab.io/">{% endblock %}
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Fantasy Lab">
+    <meta property="og:title" content="{% block og_title %}The Fantasy Lab — Yahoo Fantasy Sports Tools{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Win your Yahoo Fantasy Baseball league with smart tools — player trend tracker, waiver wire finder, 7-day pitcher forecast, and AI pickup recommendations.{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}https://www.thefantasylab.io/{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}https://www.thefantasylab.io/static/images/social-sharing-image.png{% endblock %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}The Fantasy Lab — Yahoo Fantasy Sports Tools{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Win your Yahoo Fantasy Baseball league with smart tools — player trend tracker, waiver wire finder, 7-day pitcher forecast, and AI pickup recommendations.{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}https://www.thefantasylab.io/static/images/social-sharing-image.png{% endblock %}">
+
+    <!-- Preconnect for third-party resources -->
+    <link rel="preconnect" href="https://s.yimg.com">
+    <link rel="dns-prefetch" href="https://s.yimg.com">
+    <link rel="dns-prefetch" href="https://baseball.fantasysports.yahoo.com">
+
+    <!-- Preload critical assets -->
+    <link rel="preload" href="{% static 'css/style.css' %}" as="style">
+    <link rel="preload" href="{% static 'images/default-logo.svg' %}" as="image" type="image/svg+xml">
+
+    <!-- Stylesheets -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}?v={% now "U" %}">
+
+    <!-- Page-specific head content (inline styles, extra links) -->
     {% block extra_head %}{% endblock %}
+
+    <!-- WebSite schema (sitewide) -->
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"The Fantasy Lab","url":"https://www.thefantasylab.io/"}</script>
+
+    <!-- Page-specific structured data -->
+    {% block structured_data %}{% endblock %}
 </head>
 <body>
     <!-- Navigation -->

@@ -44,19 +44,15 @@ class UserProfile(models.Model):
 
     @property
     def can_access_available_sp(self):
-        return self.tier in self.PAID_TIERS
+        return True
 
     @property
     def can_access_matchups(self):
-        return self.tier in self.PAID_TIERS
+        return True
 
     @property
     def can_access_ai_gm(self):
         return self.tier in self.PAID_TIERS
-
-    @property
-    def can_access_league_analytics(self):
-        return self.tier == self.TIER_ELITE
 
     def __str__(self):
         return f'{self.user.username} ({self.tier})'

@@ -101,15 +101,6 @@
                     Hitter Matchups &#128274;
                 </button>
                 {% endif %}
-                {% if can_access_league_analytics %}
-                <button class="sidenav-item" id="nav-league-analytics" onclick="showTeamView('league-analytics')">
-                    League Analytics
-                </button>
-                {% else %}
-                <button class="sidenav-item sidenav-item-locked" onclick="showTeamView('league-analytics-locked')">
-                    League Analytics &#128274;
-                </button>
-                {% endif %}
             </nav>
 
             <!-- Content -->
@@ -470,39 +461,6 @@
                 </div>
                 {% endif %}
 
-                <!-- League Analytics View -->
-                {% if can_access_league_analytics %}
-                <div id="view-league-analytics" style="display:none;">
-                    <div id="league-analytics-loading" class="matchups-loading">
-                        <span>Loading league analytics…</span>
-                    </div>
-                    <div id="league-analytics-error" class="matchups-error" style="display:none;">
-                        Could not load league analytics. Try refreshing.
-                    </div>
-                    <div id="league-analytics-content" style="display:none;">
-                        <div class="la-meta" id="la-meta"></div>
-                        <div class="roster-table-wrapper">
-                            <table class="roster-table la-table">
-                                <thead>
-                                    <tr>
-                                        <th class="la-th-rank">Rank</th>
-                                        <th>Team</th>
-                                        <th>Total Pts</th>
-                                        <th>Avg/Wk</th>
-                                        <th>Week Pts</th>
-                                        <th id="la-record-header" style="display:none;">Record</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="la-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div id="view-league-analytics-locked" style="display:none;">
-                    {% include "home/partials/_upgrade_prompt.html" with feature="League Analytics" required_tier="Elite" %}
-                </div>
-                {% endif %}
 
             </div><!-- /teams-content -->
         </div><!-- /teams-layout -->
@@ -541,6 +499,39 @@ function toggleKeeper(btn) {
 
 
 function runAIAnalysis() {
+    const hasKeepers = document.querySelectorAll('.keeper-btn.keeper-active').length > 0;
+    if (!hasKeepers) {
+        const body = document.getElementById('ai-rec-body');
+        const btn  = document.getElementById('ai-run-btn');
+        btn.disabled = true;
+        body.className = 'ai-rec-body ai-rec-warn';
+        body.innerHTML = `
+            <div class="ai-rec-warn-content">
+                <span class="ai-rec-warn-icon">&#9888;</span>
+                <div>
+                    <div class="ai-rec-warn-title">No keepers locked</div>
+                    <div class="ai-rec-warn-text">Lock your star players using the &#128274; icon on the roster before running analysis — otherwise the AI may suggest dropping them.</div>
+                </div>
+            </div>
+            <div class="ai-rec-warn-actions">
+                <button class="btn-ai-warn-continue" onclick="doRunAIAnalysis()">Continue Anyway</button>
+                <button class="btn-ai-warn-cancel" onclick="cancelAIAnalysis()">Cancel</button>
+            </div>`;
+        return;
+    }
+    doRunAIAnalysis();
+}
+
+function cancelAIAnalysis() {
+    const body = document.getElementById('ai-rec-body');
+    const btn  = document.getElementById('ai-run-btn');
+    btn.disabled    = false;
+    btn.textContent = 'Run Analysis';
+    body.className  = 'ai-rec-body ai-rec-idle';
+    body.innerHTML  = '<span class="ai-rec-idle-text">Click "Run Analysis" to get today\'s recommendation.</span>';
+}
+
+function doRunAIAnalysis() {
     const body   = document.getElementById('ai-rec-body');
     const btn    = document.getElementById('ai-run-btn');
     btn.disabled = true;
@@ -633,15 +624,13 @@ function renderRosterMoves(moves) {
     return `<div class="ai-rec-moves"><span class="ai-rec-moves-title">Lineup moves</span><ul class="ai-rec-moves-list">${rows}</ul></div>`;
 }
 
-let availableSpLoaded     = false;
-let matchupsLoaded        = false;
-let leagueAnalyticsLoaded = false;
+let availableSpLoaded = false;
+let matchupsLoaded    = false;
 
 const ALL_VIEWS = [
     'roster', 'waiver',
     'available-sp', 'available-sp-locked',
     'matchups', 'matchups-locked',
-    'league-analytics', 'league-analytics-locked',
 ];
 
 function showTeamView(view, updateHash = true) {
@@ -653,8 +642,6 @@ function showTeamView(view, updateHash = true) {
     document.getElementById('nav-waiver').classList.toggle('active', view === 'waiver');
     const navMatchups = document.getElementById('nav-matchups');
     if (navMatchups) navMatchups.classList.toggle('active', view === 'matchups');
-    const navLA = document.getElementById('nav-league-analytics');
-    if (navLA) navLA.classList.toggle('active', view === 'league-analytics');
     if (updateHash) history.replaceState(null, '', '#' + view);
     if (view === 'waiver') {
         initWaiverFilters();
@@ -665,9 +652,6 @@ function showTeamView(view, updateHash = true) {
     }
     if (view === 'matchups' && !matchupsLoaded) {
         loadMatchups();
-    }
-    if (view === 'league-analytics' && !leagueAnalyticsLoaded) {
-        loadLeagueAnalytics();
     }
 }
 
@@ -833,7 +817,19 @@ function filterWaiver() {
 const AVAILABLE_SP_API      = '{% url "home:available_sp_api" %}';
 const AI_RECOMMENDATION_API = '{% url "home:ai_recommendation_api" %}';
 const MATCHUPS_API          = '{% url "home:matchups_api" %}';
-const LEAGUE_ANALYTICS_API  = '{% url "home:league_analytics_api" %}';
+
+function pickupSP(btn, playerKey) {
+    try {
+        const parts     = TEAM_KEY.split('.t.');
+        const teamNum   = parts[1];
+        const leagueNum = parts[0].split('.l.')[1];
+        const playerNum = playerKey.split('.p.')[1];
+        const url = `https://baseball.fantasysports.yahoo.com/b1/${leagueNum}/${teamNum}/addplayer?apid=${playerNum}`;
+        window.open(url, '_blank', 'noopener');
+    } catch(e) {
+        window.open('https://baseball.fantasysports.yahoo.com', '_blank', 'noopener');
+    }
+}
 
 function loadAvailableSP() {
     const listEl = document.getElementById('available-sp-list');
@@ -883,6 +879,7 @@ function renderAvailableSpList(days) {
                             <th class="hide-mobile">Eligible</th>
                             <th>Trending</th>
                             <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>${day.html}</tbody>
@@ -910,50 +907,6 @@ function loadMatchups() {
             document.getElementById('matchups-loading').style.display = 'none';
             document.getElementById('matchups-error').style.display = 'block';
         });
-}
-
-function loadLeagueAnalytics() {
-    fetch(`${LEAGUE_ANALYTICS_API}?key=${TEAM_KEY}`)
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('league-analytics-loading').style.display = 'none';
-            if (data.error || !data.teams) {
-                document.getElementById('league-analytics-error').style.display = 'block';
-                return;
-            }
-            leagueAnalyticsLoaded = true;
-            renderLeagueAnalytics(data);
-            document.getElementById('league-analytics-content').style.display = 'block';
-        })
-        .catch(() => {
-            document.getElementById('league-analytics-loading').style.display = 'none';
-            document.getElementById('league-analytics-error').style.display = 'block';
-        });
-}
-
-function renderLeagueAnalytics(data) {
-    const meta   = document.getElementById('la-meta');
-    const tbody  = document.getElementById('la-tbody');
-    const recHdr = document.getElementById('la-record-header');
-
-    meta.textContent = `Week ${data.weeks_played} · ${data.teams.length} teams`;
-    if (data.is_h2h) recHdr.style.display = '';
-
-    tbody.innerHTML = data.teams.map(t => {
-        const rankIcon = t.rank === 1 ? '<span class="la-crown">&#127942;</span>' : '';
-        const rowClass = t.is_user_team ? 'la-row-user' : '';
-        const record   = data.is_h2h
-            ? `<td class="la-record">${t.wins}-${t.losses}${t.ties ? '-' + t.ties : ''}</td>`
-            : '';
-        return `<tr class="${rowClass}">
-            <td class="la-rank">${rankIcon}${t.rank}</td>
-            <td class="la-team-name">${t.team_name}${t.is_user_team ? ' <span class="la-you">You</span>' : ''}</td>
-            <td class="la-pts">${t.total_points}</td>
-            <td class="la-avg">${t.avg_points}</td>
-            <td class="la-week">${t.week_points}</td>
-            ${record}
-        </tr>`;
-    }).join('');
 }
 
 function renderMatchupsTable(data) {

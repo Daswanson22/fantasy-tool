@@ -53,7 +53,12 @@
         <div class="leagues-section">
             <h2 class="leagues-title">&#9965; My MLB Leagues</h2>
 
-            {% if not selection_complete and slots_remaining != 'inf' %}
+            {% if is_unlimited %}
+            <p class="selection-info">
+                Select your leagues —
+                <strong>{{ saved_count }}</strong> connected. Unlimited on your plan.
+            </p>
+            {% elif not selection_complete %}
             <p class="selection-info">
                 Select your league{% if league_limit != 1 %}s{% endif %} —
                 <strong>{{ saved_count }} of {{ league_limit }}</strong> selected.

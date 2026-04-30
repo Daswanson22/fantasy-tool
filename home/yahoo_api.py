@@ -232,22 +232,32 @@ class YahooFantasyAPI:
         return result
 
     def get_league_standings(self, league_key):
-        """Return all teams' season standings for the league.
+        """Return (teams list, current_week) for the league.
 
-        Each entry: {team_key, team_name, rank, points_for, wins, losses, ties}
+        teams: [{team_key, team_name, rank, points_for, wins, losses, ties}, ...]
+        current_week: live MLB season week from Yahoo (may be None if unavailable)
         """
         data = self.get(f'/league/{league_key}/standings')
         return _parse_league_standings(data)
 
     def get_league_scoreboard(self, league_key, week=None):
-        """Return current week points for each team in the league.
+        """Return current week scoring data for every team in the league.
 
-        Returns {team_key: week_points (float)}.
+        Returns {team_key: {week_pts, projected_pts, win_prob}}.
         Optionally pass week (int) to fetch a specific week's scoreboard.
         """
         week_filter = f';week={week}' if week else ''
         data = self.get(f'/league/{league_key}/scoreboard{week_filter}')
         return _parse_league_scoreboard(data)
+
+    def get_league_teams_stats(self, league_key, stat_type='lastweek'):
+        """Return {team_key: total_pts} for all teams in the league for stat_type.
+
+        stat_type: 'season', 'lastweek', 'lastmonth'
+        Uses /league/{key}/teams/stats;type={stat_type}.
+        """
+        data = self.get(f'/league/{league_key}/teams/stats;type={stat_type}')
+        return _parse_league_teams_stats(data)
 
     def get_league_player_stats(self, league_key, player_keys, stat_type):
         """Return {player_key: total_points} for a specific set of player_keys.
@@ -1007,60 +1017,111 @@ def _parse_league_standings(data):
     """
     Parse /league/{key}/standings response.
 
-    Returns a list of team dicts:
-      { team_key, team_name, rank, points_for, wins, losses, ties }
+    XML structure (relevant excerpt):
+      <league>
+        ...
+        <standings>
+          <teams count="N">
+            <team>
+              <team_key>...</team_key>
+              <name>...</name>
+              <team_logos><team_logo><url>...</url></team_logo></team_logos>
+              <team_points><total>1583.16</total></team_points>
+              <team_standings>
+                <rank>1</rank>
+                <outcome_totals><wins>8</wins>...</outcome_totals>
+                <streak><type>win</type><value>3</value></streak>
+                <points_for>1583.16</points_for>
+              </team_standings>
+            </team>
+          </teams>
+        </standings>
+      </league>
 
-    points_for is the season total fantasy points (present in all scoring types).
-    wins/losses/ties are only meaningful in H2H leagues; they'll be 0 for roto.
+    In JSON, team is a two-element array: [info_list, sub_resources_dict].
+    Returns a list of team dicts sorted by rank.
     """
+    def _flt(val, default=0.0):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return default
+
+    def _int(val, default=0):
+        try:
+            return int(val)
+        except (TypeError, ValueError):
+            return default
+
     teams = []
+    current_week = None
     try:
         league_arr = data['fantasy_content']['league']
 
         standings_block = None
         for item in (league_arr if isinstance(league_arr, list) else _get_list_value(league_arr)):
-            if isinstance(item, dict) and 'standings' in item:
-                standings_block = item['standings']
-                break
+            if isinstance(item, dict):
+                # Grab the live current_week from the league metadata
+                if 'current_week' in item and current_week is None:
+                    try:
+                        current_week = int(item['current_week'])
+                    except (TypeError, ValueError):
+                        pass
+                if 'standings' in item:
+                    standings_block = item['standings']
         if standings_block is None:
-            return teams
+            return teams, current_week
 
-        # standings is a list with one element: {"teams": {count-keyed}}
+        # standings may arrive as a list or a dict
         if isinstance(standings_block, list):
             standings_block = standings_block[0] if standings_block else {}
 
         teams_obj = standings_block.get('teams', {})
     except (KeyError, TypeError):
-        return teams
+        return teams, current_week
 
     for team_wrapper in _get_list_value(teams_obj):
         try:
             team_arr = team_wrapper['team']
+
+            # team[0]: list/dict of basic info fields
             info_raw = _arr_get(team_arr, 0)
-            team_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+            team_info = (
+                _flatten_array(info_raw) if isinstance(info_raw, list)
+                else (info_raw if isinstance(info_raw, dict) else {})
+            )
+            team_key  = team_info.get('team_key', '')
+            team_name = team_info.get('name', '')
+            if isinstance(team_name, dict):
+                team_name = str(team_name)
 
-            name_data = team_info.get('name', '')
-            team_name = name_data if isinstance(name_data, str) else str(name_data)
-            team_key = team_info.get('team_key', '')
+            # team_logos: list of {"team_logo": {"size": ..., "url": ...}}
+            logo_url = ''
+            team_logos = team_info.get('team_logos', [])
+            if isinstance(team_logos, dict):
+                team_logos = [team_logos]
+            for logo_item in (team_logos if isinstance(team_logos, list) else []):
+                tl = logo_item.get('team_logo', {}) if isinstance(logo_item, dict) else {}
+                if isinstance(tl, dict) and tl.get('url'):
+                    logo_url = tl['url']
+                    break
 
-            extra = _arr_get(team_arr, 1)
-            ts = extra.get('team_standings', {}) if isinstance(extra, dict) else {}
+            # team array is 3 elements:
+            #   team[0] = info list
+            #   team[1] = {"team_stats": ..., "team_points": ...}
+            #   team[2] = {"team_standings": ...}
+            extra    = _arr_get(team_arr, 1)
+            extra2   = _arr_get(team_arr, 2)
+            if not isinstance(extra,  dict): extra  = {}
+            if not isinstance(extra2, dict): extra2 = {}
+
+            # team_standings is in team[2]
+            ts = extra2.get('team_standings') or extra.get('team_standings', {})
             if isinstance(ts, list):
                 ts = _flatten_array(ts)
+            if not isinstance(ts, dict):
+                ts = {}
 
-            def _flt(val, default=0.0):
-                try:
-                    return float(val)
-                except (TypeError, ValueError):
-                    return default
-
-            def _int(val, default=0):
-                try:
-                    return int(val)
-                except (TypeError, ValueError):
-                    return default
-
-            rank = _int(ts.get('rank', 0))
             points_for = _flt(ts.get('points_for', 0))
 
             outcome = ts.get('outcome_totals', {})
@@ -1070,27 +1131,66 @@ def _parse_league_standings(data):
             losses = _int(outcome.get('losses', 0)) if isinstance(outcome, dict) else 0
             ties   = _int(outcome.get('ties',   0)) if isinstance(outcome, dict) else 0
 
+            streak = ts.get('streak', {})
+            if isinstance(streak, list):
+                streak = _flatten_array(streak)
+            streak_type  = streak.get('type',  '') if isinstance(streak, dict) else ''
+            streak_value = _int(streak.get('value', 0) if isinstance(streak, dict) else 0)
+
+            # team_points is in team[1]
+            tp = extra.get('team_points', {})
+            if isinstance(tp, list):
+                tp = _flatten_array(tp)
+            if isinstance(tp, dict) and tp.get('total'):
+                points_for = _flt(tp['total']) or points_for
+
             teams.append({
-                'team_key':   team_key,
-                'team_name':  team_name,
-                'rank':       rank,
-                'points_for': points_for,
-                'wins':       wins,
-                'losses':     losses,
-                'ties':       ties,
+                'team_key':    team_key,
+                'team_name':   team_name,
+                'logo_url':    logo_url,
+                'rank':        0,
+                'points_for':  points_for,
+                'wins':        wins,
+                'losses':      losses,
+                'ties':        ties,
+                'streak_type': streak_type,
+                'streak_val':  streak_value,
             })
         except (KeyError, IndexError, TypeError):
             continue
 
-    return teams
+    return teams, current_week
 
 
 def _parse_league_scoreboard(data):
     """
     Parse /league/{key}/scoreboard response.
 
-    Returns {team_key: week_points (float)} for all teams currently in a matchup.
+    XML structure (relevant excerpt):
+      <scoreboard>
+        <week>16</week>
+        <matchups count="N">
+          <matchup>
+            <teams count="2">
+              <team>
+                <team_key>...</team_key>
+                <win_probability>1</win_probability>
+                <team_points><total>112.82</total></team_points>
+                <team_projected_points><total>108.87</total></team_projected_points>
+              </team>
+            </teams>
+          </matchup>
+        </matchups>
+      </scoreboard>
+
+    Returns {team_key: {week_pts, projected_pts, win_probability}}.
     """
+    def _flt(val):
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return 0.0
+
     result = {}
     try:
         league_arr = data['fantasy_content']['league']
@@ -1103,41 +1203,117 @@ def _parse_league_scoreboard(data):
         if scoreboard_block is None:
             return result
 
-        # scoreboard: {"0": {"matchups": {count-keyed}}, "count": N}
-        inner = scoreboard_block.get('0', {}) if isinstance(scoreboard_block, dict) else {}
-        matchups_obj = inner.get('matchups', {}) if isinstance(inner, dict) else {}
+        # scoreboard is a dict: {"week": N, "0": {"matchups": {count-keyed}}}
+        if isinstance(scoreboard_block, list):
+            scoreboard_block = scoreboard_block[0] if scoreboard_block else {}
+
+        # Matchups live under scoreboard["0"]["matchups"]
+        matchups_obj = (
+            scoreboard_block.get('0', {}).get('matchups', {})
+            if isinstance(scoreboard_block, dict) else {}
+        )
     except (KeyError, TypeError):
         return result
 
     for matchup_wrapper in _get_list_value(matchups_obj):
         try:
-            matchup_arr = matchup_wrapper.get('matchup', [])
-            teams_block = None
-            for elem in (matchup_arr if isinstance(matchup_arr, list) else _get_list_value(matchup_arr)):
-                if isinstance(elem, dict) and 'teams' in elem:
-                    teams_block = elem['teams']
-                    break
-            if teams_block is None:
+            # matchup is a flat dict (not a list), get teams directly
+            matchup = matchup_wrapper.get('matchup', {})
+            if not isinstance(matchup, dict):
+                continue
+            # Teams are under matchup["0"]["teams"], not matchup["teams"]
+            teams_block = matchup.get('0', {}).get('teams', {})
+            if not teams_block:
                 continue
 
             for team_wrapper in _get_list_value(teams_block):
                 team_arr = team_wrapper.get('team', [])
+
+                # team[0]: basic info list
                 info_raw = _arr_get(team_arr, 0)
-                team_info = _flatten_array(info_raw) if isinstance(info_raw, list) else (info_raw if isinstance(info_raw, dict) else {})
+                team_info = (
+                    _flatten_array(info_raw) if isinstance(info_raw, list)
+                    else (info_raw if isinstance(info_raw, dict) else {})
+                )
                 team_key = team_info.get('team_key', '')
 
+                # team[1]: stats dict with team_points, team_projected_points, etc.
                 extra = _arr_get(team_arr, 1)
-                tp = extra.get('team_points', {}) if isinstance(extra, dict) else {}
-                if isinstance(tp, list):
-                    tp = _flatten_array(tp)
-                total = tp.get('total') if isinstance(tp, dict) else None
-                try:
-                    week_pts = float(total) if total is not None else 0.0
-                except (TypeError, ValueError):
-                    week_pts = 0.0
+                if not isinstance(extra, dict):
+                    extra = {}
+
+                def _get_total(key):
+                    block = extra.get(key, {})
+                    if isinstance(block, list):
+                        block = _flatten_array(block)
+                    if isinstance(block, dict):
+                        total = block.get('total', 0)
+                        # total may itself be a dict for remaining_games; guard that
+                        return _flt(total) if not isinstance(total, dict) else 0.0
+                    return 0.0
+
+                week_pts      = _get_total('team_points')
+                # Prefer live projected pts when available
+                proj_live     = _get_total('team_live_projected_points')
+                proj_static   = _get_total('team_projected_points')
+                projected_pts = proj_live if proj_live else proj_static
+                win_prob      = _flt(extra.get('win_probability',
+                                  team_info.get('win_probability', 0)))
 
                 if team_key:
-                    result[team_key] = week_pts
+                    result[team_key] = {
+                        'week_pts':      week_pts,
+                        'projected_pts': projected_pts,
+                        'win_prob':      win_prob,
+                    }
+        except (KeyError, IndexError, TypeError):
+            continue
+
+    return result
+
+
+def _parse_league_teams_stats(data):
+    """
+    Parse /league/{key}/teams/stats;type={stat_type} response.
+
+    Returns {team_key: total_pts (float)} for all teams in the league.
+    Structure mirrors the scoreboard teams but rooted under league[1].teams.
+    """
+    result = {}
+    try:
+        league_arr = data['fantasy_content']['league']
+        container = _arr_get(league_arr, 1)
+        if not isinstance(container, dict):
+            return result
+        teams_obj = container.get('teams', {})
+    except (KeyError, TypeError):
+        return result
+
+    for team_wrapper in _get_list_value(teams_obj):
+        try:
+            team_arr = team_wrapper['team']
+
+            info_raw  = _arr_get(team_arr, 0)
+            team_info = (
+                _flatten_array(info_raw) if isinstance(info_raw, list)
+                else (info_raw if isinstance(info_raw, dict) else {})
+            )
+            team_key = team_info.get('team_key', '')
+            if not team_key:
+                continue
+
+            extra = _arr_get(team_arr, 1)
+            if not isinstance(extra, dict):
+                continue
+
+            tp = extra.get('team_points', {})
+            if isinstance(tp, list):
+                tp = _flatten_array(tp)
+            total = tp.get('total') if isinstance(tp, dict) else None
+            try:
+                result[team_key] = float(total) if total is not None else 0.0
+            except (TypeError, ValueError):
+                result[team_key] = 0.0
         except (KeyError, IndexError, TypeError):
             continue
 

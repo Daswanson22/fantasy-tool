@@ -324,12 +324,38 @@ def _cancel_subscription(subscription):
     _update_profile(customer_id, tier='free', subscription_id='')
 
 
+_TIER_LEAGUE_LIMIT = {
+    'free':  1,
+    'pro':   3,
+    'elite': None,  # unlimited
+}
+
+
+def _is_downgrade(old_tier, new_tier):
+    """Return True if new_tier allows fewer leagues than old_tier."""
+    old_limit = _TIER_LEAGUE_LIMIT.get(old_tier, 1)
+    new_limit = _TIER_LEAGUE_LIMIT.get(new_tier, 1)
+    if old_limit is None:
+        # elite → anything lower is a downgrade
+        return new_limit is not None
+    if new_limit is None:
+        return False  # upgrading to unlimited
+    return new_limit < old_limit
+
+
 def _update_profile(customer_id, *, tier, subscription_id):
     try:
-        from accounts.models import UserProfile
+        from accounts.models import UserProfile, SelectedLeague
         profile = UserProfile.objects.select_related('user').get(
             stripe_customer_id=customer_id
         )
+        old_tier = profile.tier
+        if _is_downgrade(old_tier, tier):
+            deleted, _ = SelectedLeague.objects.filter(user=profile.user).delete()
+            logger.info(
+                'Reset %d league selection(s) for %s due to downgrade %s → %s',
+                deleted, profile.user.username, old_tier, tier,
+            )
         profile.tier = tier
         profile.stripe_subscription_id = subscription_id
         profile.save(update_fields=['tier', 'stripe_subscription_id'])

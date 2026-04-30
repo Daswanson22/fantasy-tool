@@ -2054,6 +2054,55 @@ tr:hover .keeper-btn {
 
 .ai-rec-loading { opacity: 0.6; }
 
+.ai-rec-warn-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.ai-rec-warn-icon {
+    font-size: 1.2rem;
+    color: #f59e0b;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.ai-rec-warn-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+}
+.ai-rec-warn-text {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+.ai-rec-warn-actions {
+    display: flex;
+    gap: 8px;
+}
+.btn-ai-warn-continue {
+    background: var(--color-surface-alt);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.btn-ai-warn-continue:hover { opacity: 0.8; }
+.btn-ai-warn-cancel {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: none;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+.btn-ai-warn-cancel:hover { color: var(--color-text); }
+
 .ai-rec-status {
     display: flex;
     align-items: center;
@@ -2138,6 +2187,20 @@ tr:hover .keeper-btn {
     margin-bottom: 14px;
 }
 .btn-ai-yahoo:hover { opacity: 0.85; color: #fff; }
+
+.btn-sp-pickup {
+    display: inline-block;
+    background: #6001d2;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+.btn-sp-pickup:hover { opacity: 0.85; color: #fff; }
 
 .ai-rec-moves {
     border-top: 1px solid var(--color-border);
@@ -2612,52 +2675,3 @@ tr:hover .keeper-btn {
 .matchups-hand-r { background: rgba(239,68,68,0.15); color: #ef4444; }
 .matchups-hand-l { background: rgba(59,130,246,0.15); color: #3b82f6; }
 .matchups-hand-s { background: rgba(168,85,247,0.15); color: #a855f7; }
-
-/* ============================================
-   League Analytics
-   ============================================ */
-.la-meta {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    padding: 12px 16px 8px;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-}
-.la-table thead th {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-}
-.la-th-rank { width: 60px; text-align: center; }
-.la-rank    { text-align: center; font-weight: 700; color: var(--color-text-muted); font-size: 0.9rem; }
-.la-crown   { margin-right: 2px; font-style: normal; }
-.la-team-name {
-    font-weight: 600;
-    color: var(--color-text-heading);
-    max-width: 220px;
-}
-.la-pts, .la-avg, .la-week, .la-record {
-    font-variant-numeric: tabular-nums;
-    font-size: 0.95rem;
-}
-.la-avg   { color: var(--color-text-muted); }
-.la-week  { color: var(--color-primary); font-weight: 600; }
-.la-record { color: var(--color-text-muted); font-size: 0.85rem; }
-
-.la-row-user td { background: rgba(34, 197, 94, 0.05); }
-.la-row-user:hover td { background: rgba(34, 197, 94, 0.1) !important; }
-
-.la-you {
-    display: inline-block;
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-primary);
-    background: var(--color-primary-glow);
-    padding: 1px 6px;
-    border-radius: 4px;
-    margin-left: 6px;
-    vertical-align: middle;
-}

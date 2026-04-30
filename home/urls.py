@@ -15,5 +15,4 @@ urlpatterns = [
     path('toggle-ai-manager/', views.toggle_ai_manager, name='toggle_ai_manager'),
     path('ai-recommendation/', views.ai_recommendation_api, name='ai_recommendation_api'),
     path('matchups/', views.matchups_api, name='matchups_api'),
-    path('league-analytics/', views.league_analytics_api, name='league_analytics_api'),
 ]

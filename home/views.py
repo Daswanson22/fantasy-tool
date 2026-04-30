@@ -22,7 +22,6 @@ _RATE_LIMITS = {
     'toggle_keeper': (120, 60),
     'save_ai_config': (60, 60),
     'toggle_ai_manager': (30, 60),
-    'league_analytics_api': (30, 60),
 }
 _RATE_LIMITS = getattr(settings, 'HOME_RATE_LIMITS', _RATE_LIMITS)
 
@@ -113,6 +112,14 @@ def dashboard(request):
 
     tier, league_limit = _get_tier_info(user)
 
+    # Self-heal: if the user has more selections than their current tier allows
+    # (e.g. they downgraded and the webhook fired before this was in place),
+    # clear all selections so they can re-select within the new limit.
+    if league_limit is not None:
+        over_limit = SelectedLeague.objects.filter(user=user).count() > league_limit
+        if over_limit:
+            SelectedLeague.objects.filter(user=user).delete()
+
     # Leagues the user has permanently selected
     saved_keys = set(
         SelectedLeague.objects.filter(user=user).values_list('team_key', flat=True)
@@ -122,6 +129,7 @@ def dashboard(request):
         else float('inf')
     )
     selection_complete = league_limit is not None and len(saved_keys) >= league_limit
+    is_unlimited = league_limit is None
 
     try:
         social = user.social_auth.get(provider='yahoo-oauth2')
@@ -171,6 +179,7 @@ def dashboard(request):
         'league_limit': league_limit,
         'slots_remaining': slots_remaining,
         'selection_complete': selection_complete,
+        'is_unlimited': is_unlimited,
         'saved_count': len(saved_keys),
     })
 
@@ -421,15 +430,13 @@ def teams(request):
 
     try:
         profile = request.user.profile
-        can_access_available_sp      = profile.can_access_available_sp
-        can_access_matchups          = profile.can_access_matchups
-        can_access_ai_gm             = profile.can_access_ai_gm
-        can_access_league_analytics  = profile.can_access_league_analytics
+        can_access_available_sp = profile.can_access_available_sp
+        can_access_matchups     = profile.can_access_matchups
+        can_access_ai_gm        = profile.can_access_ai_gm
     except Exception:
-        can_access_available_sp      = False
-        can_access_matchups          = False
-        can_access_ai_gm             = False
-        can_access_league_analytics  = False
+        can_access_available_sp = False
+        can_access_matchups     = False
+        can_access_ai_gm        = False
 
     ai_config, _ = AIManagerConfig.objects.get_or_create(
         user=request.user,
@@ -452,7 +459,6 @@ def teams(request):
         'can_access_available_sp': can_access_available_sp,
         'can_access_matchups': can_access_matchups,
         'can_access_ai_gm': can_access_ai_gm,
-        'can_access_league_analytics': can_access_league_analytics,
         'ai_config': ai_config,
         'league_settings': league_settings_obj,
         'remaining_weeks': (
@@ -1025,97 +1031,3 @@ def matchups_api(request):
         })
 
     return JsonResponse({'dates': dates, 'hitters': hitter_rows})
-
-
-@login_required
-def league_analytics_api(request):
-    """
-    AJAX: return league-wide standings + current week scores for all teams.
-    Elite tier only.
-
-    Returns JSON:
-      {
-        teams: [{rank, team_name, total_points, avg_points_per_week,
-                 week_points, wins, losses, ties, is_user_team}],
-        weeks_played: int,
-        is_h2h: bool,
-      }
-    """
-    try:
-        if not request.user.profile.can_access_league_analytics:
-            return JsonResponse({'error': 'upgrade_required'}, status=403)
-    except Exception:
-        return JsonResponse({'error': 'upgrade_required'}, status=403)
-
-    if _is_rate_limited(request, 'league_analytics_api'):
-        return JsonResponse({'error': 'rate_limited'}, status=429)
-
-    team_key = request.GET.get('key', '').strip()
-    if not team_key or '.t.' not in team_key:
-        return JsonResponse({'error': 'invalid_request'}, status=400)
-
-    league_key = team_key.rsplit('.t.', 1)[0]
-
-    try:
-        social = request.user.social_auth.get(provider='yahoo-oauth2')
-        api = get_api_for_user(social)
-        if not _is_authorized_team_key(request.user, team_key, api=api):
-            return JsonResponse({'error': 'forbidden'}, status=403)
-    except TokenExpiredError:
-        return JsonResponse({'error': 'auth_required'}, status=401)
-    except Exception as exc:
-        logger.error('league_analytics_api auth failed user=%s: %s', request.user.pk, exc)
-        return JsonResponse({'error': 'service_unavailable'}, status=503)
-
-    cache_key = f'league_analytics:{league_key}'
-    cached = cache.get(cache_key)
-    if cached:
-        # Re-stamp is_user_team based on current user's team_key
-        for t in cached['teams']:
-            t['is_user_team'] = (t['team_key'] == team_key)
-        return JsonResponse(cached)
-
-    try:
-        standings = api.get_league_standings(league_key)
-        week_pts_map = api.get_league_scoreboard(league_key)
-    except TokenExpiredError:
-        return JsonResponse({'error': 'auth_required'}, status=401)
-    except Exception as exc:
-        logger.error('league_analytics_api fetch failed league=%s: %s', league_key, exc)
-        return JsonResponse({'error': 'service_unavailable'}, status=503)
-
-    league_settings = LeagueSettings.objects.filter(league_key=league_key).first()
-    current_week = (league_settings.current_week or 1) if league_settings else 1
-    start_week   = (league_settings.start_week   or 1) if league_settings else 1
-    is_h2h       = league_settings.is_h2h if league_settings else False
-    weeks_played = max(1, current_week - start_week + 1)
-
-    teams_out = []
-    for t in standings:
-        total_pts = t['points_for']
-        avg_pts   = round(total_pts / weeks_played, 1)
-        week_p    = week_pts_map.get(t['team_key'], 0.0)
-        teams_out.append({
-            'team_key':        t['team_key'],
-            'team_name':       t['team_name'],
-            'rank':            t['rank'],
-            'total_points':    round(total_pts, 1),
-            'avg_points':      avg_pts,
-            'week_points':     round(week_p, 1),
-            'wins':            t['wins'],
-            'losses':          t['losses'],
-            'ties':            t['ties'],
-            'is_user_team':    (t['team_key'] == team_key),
-        })
-
-    teams_out.sort(key=lambda x: x['rank'])
-
-    payload = {
-        'teams':        teams_out,
-        'weeks_played': weeks_played,
-        'is_h2h':       is_h2h,
-    }
-    cache.set(cache_key, payload, timeout=600)  # 10 minutes
-
-    # is_user_team is already set correctly above
-    return JsonResponse(payload)

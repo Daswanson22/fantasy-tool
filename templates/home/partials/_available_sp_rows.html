@@ -8,7 +8,7 @@
 </tr>
 {% endif %}
 {% for player in players %}
-<tr>
+<tr data-player-key="{{ player.player_key }}">
     <td class="player-name-cell">
         {% if player.image_url %}
         <img src="{{ player.image_url }}" alt="{{ player.name }}" class="player-avatar">
@@ -34,6 +34,7 @@
     <td class="text-muted hide-mobile">{{ player.eligible_positions }}</td>
     <td>{% include "home/partials/_trending_cell.html" with player=player %}</td>
     <td>{% include "home/partials/_status_cell.html" with player=player %}</td>
+    <td><a href="#" class="btn-sp-pickup" onclick="pickupSP(this, '{{ player.player_key }}'); return false;">Pick Up &#8599;</a></td>
 </tr>
 {% empty %}
 <tr>

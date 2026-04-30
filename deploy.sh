@@ -6,8 +6,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_NAME="vitrualenv"
-VENV_DIR="$HOME/.virtualenvs/$VENV_NAME"
+VENV_DIR="$PROJECT_DIR/venv"
 
 echo "=== Fantasy Tool — PythonAnywhere Deploy ==="
 echo "Project dir : $PROJECT_DIR"
@@ -16,8 +15,8 @@ echo ""
 
 # ── 1. Virtualenv ──────────────────────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
-    echo "[1/5] Creating virtual environment (Python 3.13)..."
-    mkvirtualenv "$VENV_NAME" --python=/usr/bin/python3.13
+    echo "[1/5] Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
 else
     echo "[1/5] Virtual environment already exists."
 fi

@@ -76,6 +76,41 @@ class YahooFantasyOAuth2(YahooOAuth2):
         params['response_type'] = 'code'
         return params
 
+    def request_access_token(self, *args, **kwargs):
+        """
+        Exchange the authorization code for tokens.
+
+        social-auth-core's BaseAuth.request() raises requests.HTTPError on
+        non-2xx responses (e.g. Yahoo returning 400 invalid_grant for an
+        expired/reused code, or 401 for bad client credentials).  HTTPError is
+        NOT a SocialAuthBaseException, so do_complete()'s except clause never
+        catches it — the user sees a raw Django 500 instead of a friendly
+        "authentication failed" redirect.
+
+        Wrapping here converts any HTTP-level failure from Yahoo's token
+        endpoint into AuthFailed, which IS a SocialAuthBaseException and is
+        caught by do_complete(), giving the user a proper error redirect.
+        """
+        try:
+            return super().request_access_token(*args, **kwargs)
+        except requests.exceptions.HTTPError as exc:
+            body = ''
+            try:
+                body = exc.response.text[:300]
+            except Exception:
+                pass
+            logger.error(
+                'Yahoo token exchange HTTP error %s: %s',
+                getattr(exc.response, 'status_code', '?'),
+                body,
+            )
+            raise AuthFailed(
+                self,
+                f'Yahoo token exchange failed ({getattr(exc.response, "status_code", "?")}). '
+                'Check that YAHOO_CLIENT_ID, YAHOO_CLIENT_SECRET, and the registered '
+                'redirect URI all match the Yahoo Developer Console.',
+            ) from exc
+
     def user_data(self, access_token, *args, **kwargs):
         """
         Extract user data from a verified id_token in the token response.

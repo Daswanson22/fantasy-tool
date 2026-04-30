@@ -152,6 +152,11 @@ SOCIAL_AUTH_PIPELINE = (
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+# Where social-auth sends users when the OAuth flow fails (e.g. wrong
+# credentials, expired code, cancelled by user).  Without this setting
+# social-auth defaults to LOGIN_URL which is correct, but being explicit
+# prevents ambiguity.
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
 
 # Security defaults. Local development keeps relaxed settings.
 SESSION_COOKIE_SECURE = not DEBUG

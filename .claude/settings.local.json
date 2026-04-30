@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(python manage.py check)",
-      "Bash(xxd \"f:/daswa/Projects/fantasy-tool/requirements.txt\")"
+      "Bash(xxd \"f:/daswa/Projects/fantasy-tool/requirements.txt\")",
+      "mcp__aa0ed00b-b814-4c54-85b1-06a3c3ed422c__list_teams"
     ]
   }
 }

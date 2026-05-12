@@ -31,6 +31,9 @@ def _validate_id_token(id_token):
     if not audience:
         raise ValueError('Missing SOCIAL_AUTH_YAHOO_OAUTH2_KEY.')
 
+    # Use whatever algorithms Yahoo advertises; fall back to known-good defaults.
+    allowed_algos = config.get('id_token_signing_alg_values_supported') or ['RS256', 'ES256']
+
     # Retry once with a fresh JWKS cache to handle key rotation.
     for attempt in (1, 2):
         try:
@@ -38,7 +41,7 @@ def _validate_id_token(id_token):
             return jwt.decode(
                 id_token,
                 signing_key.key,
-                algorithms=['RS256'],
+                algorithms=allowed_algos,
                 audience=audience,
                 issuer=issuer,
                 options={'require': ['sub', 'exp', 'iat']},
@@ -47,6 +50,7 @@ def _validate_id_token(id_token):
         except Exception:
             if attempt == 1:
                 _get_yahoo_jwks_client.cache_clear()
+                _get_yahoo_oidc_config.cache_clear()
                 continue
             raise
 
@@ -79,7 +83,7 @@ class YahooFantasyOAuth2(YahooOAuth2):
     def user_data(self, access_token, *args, **kwargs):
         """
         Extract user data from a verified id_token in the token response.
-        We do not trust unverified JWT payloads.
+        Falls back to Yahoo's userinfo endpoint if id_token validation fails.
         """
         response = kwargs.get('response', {})
         id_token = response.get('id_token', '')
@@ -87,14 +91,23 @@ class YahooFantasyOAuth2(YahooOAuth2):
         if id_token:
             try:
                 claims = _validate_id_token(id_token)
-                # Ensure xoauth_yahoo_guid is available for EXTRA_DATA pipeline
                 if 'xoauth_yahoo_guid' not in claims:
                     claims['xoauth_yahoo_guid'] = response.get('xoauth_yahoo_guid', '')
                 return claims
             except Exception as exc:
                 logger.warning('Yahoo id_token validation failed: %s', exc)
 
-        # Fallback: build minimal user data from the token response fields
+        # Fallback: call Yahoo's userinfo endpoint directly
+        try:
+            return self.get_json(
+                'https://api.login.yahoo.com/openid/v1/userinfo',
+                headers={'Authorization': f'Bearer {access_token}'},
+                method='GET',
+            )
+        except Exception as exc:
+            logger.warning('Yahoo userinfo endpoint fallback failed: %s', exc)
+
+        # Last resort: minimal data from token response (sub may be empty)
         guid = response.get('xoauth_yahoo_guid', '')
         return {'sub': guid, 'xoauth_yahoo_guid': guid}
 

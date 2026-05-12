@@ -152,6 +152,7 @@ SOCIAL_AUTH_PIPELINE = (
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/dashboard/'
 LOGOUT_REDIRECT_URL = '/'
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/'
 
 # Security defaults. Local development keeps relaxed settings.
 SESSION_COOKIE_SECURE = not DEBUG

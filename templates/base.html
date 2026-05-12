@@ -73,11 +73,46 @@
                     <a href="{% url 'accounts:signup' %}" class="btn btn-primary">Sign Up Free</a>
                 {% endif %}
             </div>
-            <button class="mobile-menu-btn" aria-label="Toggle menu">
+            <button class="mobile-menu-btn" id="mobile-menu-btn"
+                    aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
                 <span></span><span></span><span></span>
             </button>
         </div>
     </nav>
+
+    <!-- Mobile nav backdrop (semi-transparent overlay behind drawer) -->
+    <div class="mobile-nav-backdrop" id="mobile-nav-backdrop" aria-hidden="true"></div>
+
+    <!-- Mobile nav drawer (slide-in from right) -->
+    <div class="mobile-nav-drawer" id="mobile-nav"
+         role="dialog" aria-modal="true" aria-label="Navigation menu">
+        <div class="mobile-nav-header">
+            <a href="{% url 'home:index' %}" class="nav-logo" onclick="closeMobileNav()">
+                <img src="{% static 'images/default-logo.svg' %}" alt="The Fantasy Lab" class="nav-logo-img">
+            </a>
+            <button class="mobile-nav-close" id="mobile-nav-close" aria-label="Close menu">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none"
+                     stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <ul class="mobile-nav-links">
+            <li><a href="{% url 'home:index' %}#features"    onclick="closeMobileNav()">Features</a></li>
+            <li><a href="{% url 'home:index' %}#how-it-works" onclick="closeMobileNav()">How It Works</a></li>
+            <li><a href="{% url 'home:index' %}#pricing"     onclick="closeMobileNav()">Pricing</a></li>
+            <li class="mobile-nav-divider" role="separator"></li>
+            {% if user.is_authenticated %}
+            <li><a href="{% url 'home:dashboard' %}" onclick="closeMobileNav()">Dashboard</a></li>
+            <li><a href="{% url 'accounts:logout' %}" onclick="closeMobileNav()">Log Out</a></li>
+            {% else %}
+            <li><a href="{% url 'accounts:login' %}"  onclick="closeMobileNav()">Log In</a></li>
+            <li><a href="{% url 'accounts:signup' %}" onclick="closeMobileNav()">Sign Up Free</a></li>
+            {% endif %}
+        </ul>
+    </div>
 
     <!-- Main Content -->
     <main>
@@ -128,5 +163,84 @@
     </footer>
 
     {% block extra_scripts %}{% endblock %}
+
+    <script>
+    /* Mobile navigation drawer — vanilla JS, no dependencies */
+    (function () {
+        var menuBtn  = document.getElementById('mobile-menu-btn');
+        var backdrop = document.getElementById('mobile-nav-backdrop');
+        var drawer   = document.getElementById('mobile-nav');
+        var closeBtn = document.getElementById('mobile-nav-close');
+        var scrollY  = 0;
+
+        function openNav() {
+            /* Lock body scroll and remember position */
+            scrollY = window.scrollY;
+            document.body.style.position = 'fixed';
+            document.body.style.top      = '-' + scrollY + 'px';
+            document.body.style.width    = '100%';
+
+            drawer.classList.add('is-open');
+            backdrop.classList.add('is-visible');
+            menuBtn.setAttribute('aria-expanded', 'true');
+            menuBtn.setAttribute('aria-label', 'Close menu');
+            menuBtn.classList.add('is-open');
+
+            /* Move focus into drawer */
+            closeBtn.focus();
+        }
+
+        function closeNav() {
+            /* Restore body scroll */
+            document.body.style.position = '';
+            document.body.style.top      = '';
+            document.body.style.width    = '';
+            window.scrollTo(0, scrollY);
+
+            drawer.classList.remove('is-open');
+            backdrop.classList.remove('is-visible');
+            menuBtn.setAttribute('aria-expanded', 'false');
+            menuBtn.setAttribute('aria-label', 'Open menu');
+            menuBtn.classList.remove('is-open');
+
+            /* Return focus to trigger */
+            menuBtn.focus();
+        }
+
+        /* Expose globally so onclick= in the drawer links can call it */
+        window.closeMobileNav = closeNav;
+
+        menuBtn.addEventListener('click', function () {
+            drawer.classList.contains('is-open') ? closeNav() : openNav();
+        });
+
+        closeBtn.addEventListener('click', closeNav);
+        backdrop.addEventListener('click', closeNav);
+
+        /* Escape key closes drawer */
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && drawer.classList.contains('is-open')) {
+                closeNav();
+            }
+        });
+
+        /* Focus trap: cycle through focusable elements inside the drawer */
+        drawer.addEventListener('keydown', function (e) {
+            if (e.key !== 'Tab') return;
+            var focusable = Array.from(
+                drawer.querySelectorAll('a[href], button:not([disabled])')
+            );
+            var first = focusable[0];
+            var last  = focusable[focusable.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        });
+    }());
+    </script>
 </body>
 </html>

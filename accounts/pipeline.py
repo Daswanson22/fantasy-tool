@@ -17,8 +17,11 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
     data = strategy.request_data()
 
     if 'username' not in data:
-        # First pass — save pipeline state and send user to the form
+        # First pass — save pipeline state and send user to the form.
+        # Pin the token to this session so the registration view can verify
+        # the POST came from the same browser that started the OAuth flow.
         current_partial = kwargs.get('current_partial')
+        strategy.request.session['yahoo_reg_partial_token'] = current_partial.token
         return strategy.redirect(
             '/accounts/complete-registration/?partial_token={}'.format(
                 current_partial.token
@@ -43,6 +46,8 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
         strategy.request.session['registration_errors'] = errors
         strategy.request.session['registration_prefill'] = {'username': username}
         current_partial = kwargs.get('current_partial')
+        # Keep the session pin in sync with the (possibly refreshed) token.
+        strategy.request.session['yahoo_reg_partial_token'] = current_partial.token
         return strategy.redirect(
             '/accounts/complete-registration/?partial_token={}'.format(
                 current_partial.token

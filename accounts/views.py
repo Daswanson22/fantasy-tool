@@ -136,7 +136,17 @@ def complete_yahoo_registration(request):
         return redirect('home:dashboard')
 
     partial_token = request.GET.get('partial_token', '')
-    if not partial_token:
+    session_token = request.session.get('yahoo_reg_partial_token', '')
+
+    # Reject any request where the URL token doesn't match what this session's
+    # OAuth flow produced.  Social-auth stores partial pipeline state in the
+    # database (not the session), so without this check any browser that
+    # obtains the token URL can complete registration as a different user.
+    if (
+        not partial_token
+        or not session_token
+        or not secrets.compare_digest(partial_token, session_token)
+    ):
         return redirect('accounts:signup')
 
     errors = request.session.pop('registration_errors', [])

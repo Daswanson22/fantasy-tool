@@ -32,6 +32,11 @@
     --transition: 0.2s ease;
 }
 
+html,
+body {
+    overflow-x: hidden; /* prevent any element from causing horizontal page scroll */
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -2733,6 +2738,7 @@ tr:hover .keeper-btn {
     transition: transform 0.25s ease-out;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
@@ -2813,6 +2819,16 @@ tr:hover .keeper-btn {
    ============================================ */
 
 @media (max-width: 768px) {
+    /* Float hamburger above the drawer so ☰ / ✕ is always visible.
+       The navbar creates a stacking context at z-index 1000; the drawer is 1100.
+       Moving the button to position:fixed at z-index 1200 makes it top-most. */
+    .mobile-menu-btn {
+        position: fixed;
+        top: 14px;
+        right: 24px;
+        z-index: 1200;
+    }
+
     /* Prevent iOS font size zoom on focused inputs */
     input[type="text"],
     input[type="email"],

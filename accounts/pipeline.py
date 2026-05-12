@@ -17,6 +17,16 @@ def require_registration(strategy, details, backend, user=None, *args, **kwargs)
     data = strategy.request_data()
 
     if 'username' not in data:
+        # If the Yahoo email already belongs to an existing account, link to it
+        # rather than showing a registration form. This is a safety net for the
+        # case where associate_by_email didn't run (e.g., email absent at that step).
+        email = details.get('email', '')
+        if email:
+            User = get_user_model()
+            existing = User.objects.filter(email__iexact=email).first()
+            if existing:
+                return {'user': existing}
+
         # First pass — save pipeline state and send user to the form.
         # Pin the token to this session so the registration view can verify
         # the POST came from the same browser that started the OAuth flow.

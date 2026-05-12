@@ -70,17 +70,24 @@ def login_view(request):
             stored = request.session.get('login_otp')
             expires = request.session.get('login_otp_expires', 0)
             if stored and secrets.compare_digest(str(entered), str(stored)) and time.time() < expires:
+                user_to_login = None
                 try:
-                    user = User.objects.get(email__iexact=email)
-                    login(request, user, backend='django.contrib.auth.backends.ModelBackend')
-                    cache.delete(verify_key)
-                    # clean up session keys
-                    for k in ('login_otp', 'login_otp_expires', 'login_email'):
-                        request.session.pop(k, None)
-                    return redirect('home:dashboard')
+                    user_to_login = User.objects.get(email__iexact=email)
                 except User.DoesNotExist:
                     _bump_rate_limit(verify_key, _OTP_VERIFY_WINDOW)
                     messages.error(request, 'No account found for that email.')
+                except User.MultipleObjectsReturned:
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning(
+                        'Multiple users share email %s; logging in most recently active', email
+                    )
+                    user_to_login = User.objects.filter(email__iexact=email).order_by('-last_login').first()
+                if user_to_login is not None:
+                    login(request, user_to_login, backend='django.contrib.auth.backends.ModelBackend')
+                    cache.delete(verify_key)
+                    for k in ('login_otp', 'login_otp_expires', 'login_email'):
+                        request.session.pop(k, None)
+                    return redirect('home:dashboard')
             else:
                 _bump_rate_limit(verify_key, _OTP_VERIFY_WINDOW)
                 messages.error(request, 'Invalid or expired code. Please try again.')

@@ -122,6 +122,14 @@ SOCIAL_AUTH_YAHOO_OAUTH2_SCOPE = ['openid', 'fspt-r']
 # Force HTTPS in the redirect URI sent to Yahoo
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
+# Pin the redirect URI to the canonical domain so it always matches what's
+# registered in the Yahoo Developer Console, regardless of proxy headers or
+# whether the user arrived via www. vs non-www.
+SOCIAL_AUTH_YAHOO_OAUTH2_REDIRECT_URI = os.environ.get(
+    'YAHOO_REDIRECT_URI',
+    'https://thefantasylab.io/auth/complete/yahoo-oauth2/',
+)
+
 SOCIAL_AUTH_URL_NAMESPACE = 'social'
 
 # Store access + refresh tokens so we can call the Yahoo Fantasy API later
@@ -138,6 +146,9 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
+    # Link Yahoo OAuth to an existing account that shares the same email,
+    # rather than creating a duplicate user.
+    'social_core.pipeline.social_auth.associate_by_email',
     # For new Yahoo users: collect username/email/password before account creation
     'accounts.pipeline.require_registration',
     'social_core.pipeline.user.get_username',

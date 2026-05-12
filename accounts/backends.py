@@ -75,9 +75,11 @@ class YahooFantasyOAuth2(YahooOAuth2):
     REDIRECT_STATE = False
 
     def get_redirect_uri(self, state=None):
-        # Use the explicitly configured redirect URI if set, so the value sent
-        # to Yahoo always matches what's registered in the Developer Console
-        # regardless of how Django constructs the absolute URI behind a proxy.
+        # Hardcode the redirect URI so it is identical in both the
+        # authorization request (step 2) and the token exchange (step 4).
+        # A dynamic URI built from request.get_host() can differ between
+        # the two steps if a www/non-www redirect happens in between,
+        # which causes Yahoo to reject the token exchange.
         configured = self.setting('REDIRECT_URI')
         return configured if configured else super().get_redirect_uri(state)
 

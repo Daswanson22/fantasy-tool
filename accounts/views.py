@@ -3,7 +3,7 @@ import secrets
 import time
 
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse
 from django.contrib import messages
 from django.contrib.auth import login, get_user_model
 from django.contrib.admin.views.decorators import staff_member_required
@@ -250,9 +250,6 @@ def verify_email_change(request, token):
 @staff_member_required
 def yahoo_debug(request):
     """Temporary: shows the exact OAuth URL social-auth will send to Yahoo."""
-    if not django_settings.DEBUG:
-        raise Http404('Not found')
-
     from urllib.parse import urlparse, parse_qs
     from django.urls import reverse
     from social_django.utils import load_strategy, load_backend

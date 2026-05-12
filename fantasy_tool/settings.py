@@ -122,9 +122,8 @@ SOCIAL_AUTH_YAHOO_OAUTH2_SCOPE = ['openid', 'fspt-r']
 # Force HTTPS in the redirect URI sent to Yahoo
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
-# Pin the redirect URI to the canonical domain so it always matches what's
-# registered in the Yahoo Developer Console, regardless of proxy headers or
-# whether the user arrived via www. vs non-www.
+# Hardcode the redirect URI so it is identical in both the authorization
+# request and the token exchange (required by Yahoo's OAuth2 spec).
 SOCIAL_AUTH_YAHOO_OAUTH2_REDIRECT_URI = os.environ.get(
     'YAHOO_REDIRECT_URI',
     'https://thefantasylab.io/auth/complete/yahoo-oauth2/',

@@ -20,5 +20,4 @@ urlpatterns = [
     path('billing/webhook/', billing.stripe_webhook, name='stripe_webhook'),
 ]
 
-if settings.DEBUG:
-    urlpatterns.append(path('yahoo-debug/', views.yahoo_debug, name='yahoo_debug'))
+urlpatterns.append(path('yahoo-debug/', views.yahoo_debug, name='yahoo_debug'))

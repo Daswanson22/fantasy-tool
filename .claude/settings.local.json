@@ -3,7 +3,10 @@
     "allow": [
       "Bash(python manage.py check)",
       "Bash(xxd \"f:/daswa/Projects/fantasy-tool/requirements.txt\")",
-      "Bash(python3 -c \"import django.conf; print\\('Django default SESSION_COOKIE_HTTPONLY:', django.conf.settings.SESSION_COOKIE_HTTPONLY if hasattr\\(django.conf.settings, 'SESSION_COOKIE_HTTPONLY'\\) else 'Not set, Django default is True'\\)\")"
+      "Bash(python3 -c \"import django.conf; print\\('Django default SESSION_COOKIE_HTTPONLY:', django.conf.settings.SESSION_COOKIE_HTTPONLY if hasattr\\(django.conf.settings, 'SESSION_COOKIE_HTTPONLY'\\) else 'Not set, Django default is True'\\)\")",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git push *)"
     ]
   }
 }

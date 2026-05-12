@@ -74,6 +74,13 @@ class YahooFantasyOAuth2(YahooOAuth2):
     # The state is sent as a separate parameter instead.
     REDIRECT_STATE = False
 
+    def get_redirect_uri(self, state=None):
+        # Use the explicitly configured redirect URI if set, so the value sent
+        # to Yahoo always matches what's registered in the Developer Console
+        # regardless of how Django constructs the absolute URI behind a proxy.
+        configured = self.setting('REDIRECT_URI')
+        return configured if configured else super().get_redirect_uri(state)
+
     def auth_params(self, state=None):
         params = super().auth_params(state)
         # Yahoo requires response_type=code for authorization code flow
